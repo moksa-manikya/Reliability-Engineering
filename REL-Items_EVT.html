@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>REL測試項目彙整與清單管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+    <style>
+        html, body, #root { height: 100%; margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-100 to-blue-50 overflow-auto select-none">
+
+    <div id="root"></div>
+
+    <script>
+        const { useState, useRef, useEffect } = React;
+        const e = React.createElement;
+
+        // 💡 ── 程式人員預設版本管理區 ──────────────────────────────────────────
+        const DEFAULT_VERSIONS = [
+              {
+                id: "20260603_V1_EVT",
+                name: "20260603_V1_EVT",
+                items: [
+                    "1@6 OE",
+"2@7 TEMPLE/L",
+"3@8 TEMPLE/R",
+"4@9 BRIDGE FLEX",
+"5@10 HIGHWAY FLEX",
+"6@11 IR CAM/B R",
+"7@12 IR CAM/B L",
+"8@13 CAMERA R",
+"9@14 CAMERA L",
+"10@15 FRONT COVER",
+"11@16 OE MID-CHASSIS",
+"12@17 SOC R",
+"13@18 VAPOR CHAMBER R",
+"14@19 WIFI/B",
+"15@20 CHARGE FLEX R",
+"16@21 BATTERY R",
+"17@22 SPEAKER R",
+"18@23 SOC L",
+"19@24 VAPOR CHAMBER L",
+"20@25 CHARGE FLEX L",
+"21@26 GPS RIGID FLEX L",
+"22@27 BATTERY L",
+"23@28 SPEAKER L",
+"24@29 DIMMABLE GLASS/L",
+"25@30 DIMMABLE GLASS/R",
+"26@31 CAMERA MODULE R",
+"27@32 IMU/B R",
+"28@33 CAMERA MODULE L",
+"29@34 IMU/B L",
+"30@43 BT_Mac_SF",
+"31@52 WIFI_Mac_SF",
+"32@55 BUTTON/B R",
+"33@56 BUTTON/B L",
+"34@57 REAR COVER",
+"35@58 MIC RIGHT FPC",
+"36@59 MIC LEFT FPC",
+"37@104 FW_Ver",
+"38@112 Battery Right Voltage",
+"39@114 Battery Right Temp",
+"40@117 Battery Left Voltage",
+"41@119 Battery Left Temp",
+"42@137 LED_0_On",
+"43@143 LED_0_Off",
+"44@149 LED_1_On",
+"45@155 LED_1_Off",
+"46@161 LED_2_On",
+"47@167 LED_2_Off",
+"48@173 LED_3_On",
+"49@179 LED_3_Off",
+"50@185 LED_4_On",
+"51@191 LED_4_Off",
+"52@198 LED_5_On",
+"53@205 LED_5_Off",
+"54@208 LED_All_On",
+"55@218 AR1_DEVICE_SN(root)",
+"56@219 AR2_DEVICE_SN(root)",
+"57@221 power_ar1_start",
+"58@223 power_ar2_start",
+"59@227 app_temple_inner_start",
+"60@230 app_temple_outer_start",
+"61@233 l_temp_start",
+"62@235 r_temp_start",
+"63@239 cv_temple_inner_start",
+"64@242 cv_temple_outer_start",
+"65@244 AR1_Start_dT1",
+"66@246 AR1_Start_dT2",
+"67@248 AR2_Start_dT1",
+"68@250 AR2_Start_dT2",
+"69@258 remount_check",
+"70@266 power_monitor_left_pogo",
+"71@268 power_monitor_ar2",
+"72@270 fuel_gauge_left",
+"73@272 charger_left",
+"74@274 tca9536",
+"75@276 tcal9538",
+"76@278 power_monitor_right_pogo",
+"77@280 power_monitor_ar1",
+"78@282 power_monitor_kauai",
+"79@284 fuel_gauge_right",
+"80@286 charger_right",
+"81@287 hinge_sensor_left",
+"82@288 pd_controller_left",
+"83@289 eeprom_left",
+"84@290 usb_hub",
+"85@291 hinge_sensor_right",
+"86@292 temp_kauai",
+"87@293 pd_controller_right",
+"88@294 eeprom_right",
+"89@295 kauai_power_control",
+"90@296 self_check_result",
+"91@300 serial_number_rgb",
+"92@301 serial_number_mono",
+"93@302 serial_number_htr",
+"94@303 serial_number_htl",
+"95@304 serial_number_htcl",
+"96@305 serial_number_htcr",
+"97@313 GPS Present",
+"98@332 SPEAKER_RIGHT_FUN_Freq",
+"99@334 SPEAKER_RIGHT_FUN_AMP",
+"100@347 SPEAKER_LEFT_FUN_Freq",
+"101@349 SPEAKER_LEFT_FUN_AMP",
+"102@362 MIC1_FUN_Freq",
+"103@364 MIC1_FUN_AMP",
+"104@368 MIC2_FUN_Freq",
+"105@370 MIC2_FUN_AMP",
+"106@374 MIC3_FUN_Freq",
+"107@376 MIC3_FUN_AMP",
+"108@381 MIC4_FUN_Freq",
+"109@383 MIC4_FUN_AMP",
+"110@387 MIC5_FUN_Freq",
+"111@389 MIC5_FUN_AMP",
+"112@394 MIC6_FUN_Freq",
+"113@396 MIC6_FUN_AMP",
+"114@401 WIFI_MAC_READ",
+"115@403 WIFI_MAC_COMPARE",
+"116@408 BT_MAC_READ",
+"117@410 BT_MAC_COMPARE",
+"118@425 PROJECTOR_GET_STATUS",
+"119@430 BLACK_Red_0_Check_R",
+"120@432 BLACK_Green_0_Check_R",
+"121@434 BLACK_Blue_0_Check_R",
+"122@437 BLACK_Red_0_Check_L",
+"123@439 BLACK_Green_0_Check_L",
+"124@441 BLACK_Blue_0_Check_L",
+"125@442 Right_Projector_Black",
+"126@443 Left_Projector_Black",
+"127@448 WHITE_Red_255_Check_R",
+"128@450 WHITE_Green_255_Check_R",
+"129@452 WHITE_Blue_255_Check_R",
+"130@455 WHITE_Red_255_Check_L",
+"131@457 WHITE_Green_255_Check_L",
+"132@459 WHITE_Blue_255_Check_L",
+"133@461 Right_Projector_White",
+"134@462 Left_Projector_White",
+"135@464 power_ar1_middle",
+"136@466 power_ar2_middle",
+"137@470 app_temple_inner_middle",
+"138@473 app_temple_outer_middle",
+"139@476 l_temp_middle",
+"140@478 r_temp_middle",
+"141@482 cv_temple_inner_middle",
+"142@485 cv_temple_outer_middle",
+"143@487 AR1_middle_dT1",
+"144@489 AR1_middle_dT2",
+"145@491 AR2_middle_dT1",
+"146@493 AR2_middle_dT2",
+"147@501 RED_Red_255_Check_R",
+"148@508 RED_Red_255_Check_L",
+"149@515 Right_Projector_Red",
+"150@516 Left_Projector_Red",
+"151@524 GREEN_Green_255_Check_R",
+"152@531 GREEN_Green_255_Check_L",
+"153@538 Right_Projector_Green",
+"154@539 Left_Projector_Green",
+"155@547 BLUE_Blue_255_Check_R",
+"156@554 BLUE_Blue_255_Check_L",
+"157@561 Right_Projector_Blue",
+"158@562 Left_Projector_Blue",
+"159@574 grab_right_dimmer_init",
+"160@577 grab_left_dimmer_init",
+"161@586 grab_right_dimmer_on",
+"162@589 grab_left_dimmer_on",
+"163@594 grab_left_dimmer_off",
+"164@597 grab_right_dimmer_off",
+"165@608 dimmer_on_left",
+"166@609 dimmer_on_right",
+"167@611 dimmer_diff_left",
+"168@613 dimmer_diff_right",
+"169@645 AR1_PING_AR2",
+"170@655 IMU_L_READ",
+"171@660 IMU_R_READ",
+"172@665 Barometer_READ",
+"173@670 Magnetometer",
+"174@672 Hinge_Left_X",
+"175@673 Hinge_Left_Z",
+"176@674 Hinge_Right_X",
+"177@675 Hinge_Right_Z",
+"178@681 app_inner_tmp103b",
+"179@684 wifi_outer",
+"180@687 app_outer_tmp114a",
+"181@690 app_temple_inner",
+"182@696 cv_temple_outer",
+"183@699 cv_temple_inner",
+"184@705 Read Button Left Unpressed",
+"185@712 Read Button Left Pressed",
+"186@719 Read Button Right Unpressed",
+"187@726 Read Button Right Pressed",
+"188@747 RGB_TAKE_PIC_CHECK",
+"189@752 Mono_TAKE_PIC_CHECK",
+"190@761 IR_TAKE_PIC_CHECK",
+"191@765 camera_image_calculate",
+"192@767 limit_version",
+"193@769 limit_mode",
+"194@770 write_calibration",
+"195@772 mock_cams",
+"196@774 station/test/get_cbd/0/pass",
+"197@776 station/all_tests_run",
+"198@778 station/test/get_cbd/1/pass",
+"199@780 station/test/get_cbd/2/pass",
+"200@782 station/test/get_cbd/3/pass",
+"201@784 station/test/get_cbd/4/pass",
+"202@786 station/test/get_cbd/5/pass",
+"203@790 device/cbd_mean_mono",
+"204@794 device/cbd_max_mono",
+"205@798 device/blemish_mono",
+"206@800 station/test/get_cbd/0/cycle_time",
+"207@804 device/wb_hi_rg_rgb",
+"208@808 device/wb_hi_bg_rgb",
+"209@812 device/cbd_mean_rgb",
+"210@816 device/cbd_max_rgb",
+"211@820 device/blemish_rgb",
+"212@822 station/test/get_cbd/1/cycle_time",
+"213@826 device/cbd_mean_irbl",
+"214@830 device/cbd_max_irbl",
+"215@834 device/blemish_irbl",
+"216@836 station/test/get_cbd/2/cycle_time",
+"217@840 device/cbd_mean_irbr",
+"218@844 device/cbd_max_irbr",
+"219@848 device/blemish_irbr",
+"220@850 station/test/get_cbd/3/cycle_time",
+"221@854 device/cbd_mean_ircl",
+"222@858 device/cbd_max_ircl",
+"223@862 device/blemish_ircl",
+"224@864 station/test/get_cbd/4/cycle_time",
+"225@868 device/cbd_mean_ircr",
+"226@872 device/cbd_max_ircr",
+"227@876 device/blemish_ircr",
+"228@878 station/test/get_cbd/5/cycle_time",
+"229@883 power_ar1_end",
+"230@885 power_ar2_end",
+"231@889 app_temple_inner_end",
+"232@892 app_temple_outer_end",
+"233@895 l_temp_end",
+"234@897 r_temp_end",
+"235@901 cv_temple_inner_end",
+"236@904 cv_temple_outer_end",
+"237@906 AR1_end_dT1",
+"238@908 AR1_end_dT2",
+"239@910 AR2_end_dT1",
+"240@912 AR2_end_dT2"
+                ],
+                createdAt: "2026/06/03 12:00"
+            },
+        ];
+
+        function App() {
+            // 版本與選取狀態：不使用 LocalStorage，每次重新整理皆還原最原始狀態
+            const [versions, setVersions] = useState(DEFAULT_VERSIONS);
+            const [activeVersionId, setActiveVersionId] = useState(() => {
+                return DEFAULT_VERSIONS.length > 0 ? DEFAULT_VERSIONS[0].id : null;
+            });
+
+            const [showNewVersionInput, setShowNewVersionInput] = useState(false);
+            const [newVersionName, setNewVersionName] = useState('');
+            const [importTargetId, setImportTargetId] = useState(null);
+            const [alarmMessage, setAlarmMessage] = useState(null);
+            const [inputValue, setInputValue] = useState('');
+            const [results, setResults] = useState([]);
+            const [newNum1, setNewNum1] = useState('');
+            const [newNum2, setNewNum2] = useState('');
+            const [newDesc, setNewDesc] = useState('');
+            const [selectedIndices, setSelectedIndices] = useState(new Set());
+            const [isManageVisible, setIsManageVisible] = useState(true); 
+            
+            // 💡 歷史紀錄：恢復 LocalStorage 自動記憶，重新整理不會消失
+            const [queryHistory, setQueryHistory] = useState(() => {
+                const saved = localStorage.getItem('rel_query_history');
+                return saved ? JSON.parse(saved) : [];
+            });
+
+            const fileInputRef = useRef(null);       
+            const versionFileRef = useRef(null);     
+            const folderInputRef = useRef(null); 
+            const historyContainerRef = useRef(null);
+
+            const activeVersion = versions.find(v => v.id === activeVersionId) || null;
+            const dataList = activeVersion ? activeVersion.items : [];
+
+            // 💡 歷史紀錄變更時，自動將其寫入 LocalStorage
+            useEffect(() => {
+                localStorage.setItem('rel_query_history', JSON.stringify(queryHistory));
+                if (historyContainerRef.current) {
+                    historyContainerRef.current.scrollTop = historyContainerRef.current.scrollHeight;
+                }
+            }, [queryHistory]);
+
+            useEffect(() => {
+                if (alarmMessage) {
+                    const timer = setTimeout(() => setAlarmMessage(null), 2000);
+                    return () => clearTimeout(timer);
+                }
+            }, [alarmMessage]);
+
+            useEffect(() => {
+                try {
+                    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                        window.lucide.createIcons();
+                    }
+                } catch (err) { console.log("Waiting for Lucide icons..."); }
+            }, [versions, activeVersionId, showNewVersionInput, dataList, results, selectedIndices, queryHistory, isManageVisible, alarmMessage]);
+
+            const updateVersionItems = (versionId, updater) => {
+                setVersions(prev => prev.map(v => {
+                    if (v.id !== versionId) return v;
+                    const items = typeof updater === 'function' ? updater(v.items) : updater;
+                    return { ...v, items };
+                }));
+            };
+
+            const handleCreateVersion = () => {
+                const name = newVersionName.trim();
+                if (!name) return;
+                const id = Date.now().toString();
+                const created = {
+                    id, name, items: [],
+                    createdAt: new Date().toLocaleString('zh-TW', {
+                        year: 'numeric', month: '2-digit', day: '2-digit',
+                        hour: '2-digit', minute: '2-digit'
+                    })
+                };
+                setVersions(prev => [created, ...prev]);
+                setAlarmMessage(`已成功建立並切換至新版本：「${name}」`);
+                setActiveVersionId(id);
+                setNewVersionName('');
+                setShowNewVersionInput(false);
+                setSelectedIndices(new Set());
+                setResults([]);
+            };
+
+            const handleFolderSelect = async (evt) => {
+                const files = Array.from(evt.target.files || []);
+                const excelFiles = files.filter(file => {
+                    const name = file.name;
+                    const isExcel = name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.csv');
+                    const isTemp = name.startsWith('~$');
+                    const depth = (file.webkitRelativePath.match(/\//g) || []).length;
+                    return isExcel && !isTemp && depth <= 1;
+                });
+
+                if (excelFiles.length === 0) {
+                    alert('在此目錄層中未找到有效的 Excel 或 CSV 檔案。');
+                    return;
+                }
+
+                let newVersionsAdded = [];
+                let latestId = null;
+                let latestName = '';
+
+                for (let file of excelFiles) {
+                    const versionName = file.name.replace(/\.[^/.]+$/, "");
+                    if (versions.some(v => v.name === versionName)) continue;
+
+                    const fileItems = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            try {
+                                const { imported } = parseXlsx(e.target.result, []);
+                                resolve(imported);
+                            } catch (err) { resolve([]); }
+                        };
+                        reader.readAsArrayBuffer(file);
+                    });
+
+                    latestId = (Date.now() + Math.random()).toString();
+                    latestName = versionName;
+                    newVersionsAdded.push({
+                        id: latestId, name: versionName, items: fileItems,
+                        createdAt: new Date().toLocaleString('zh-TW', {
+                            year: 'numeric', month: '2-digit', day: '2-digit',
+                            hour: '2-digit', minute: '2-digit'
+                        })
+                    });
+                }
+
+                if (newVersionsAdded.length > 0) {
+                    setVersions(prev => [...newVersionsAdded, ...prev]);
+                    if (latestId) {
+                        setAlarmMessage(`已掃描目錄並載入最新版本：「${latestName}」`);
+                        setActiveVersionId(latestId);
+                        setSelectedIndices(new Set());
+                        setResults([]);
+                    }
+                } else {
+                    alert('目錄下的檔案名稱皆已存在於版本管理中，未新增任何版本。');
+                }
+                evt.target.value = '';
+            };
+
+            const handleLoadVersion = (id, targetName) => {
+                if (id === activeVersionId) return;
+                setAlarmMessage(`版本已成功切換至：「${targetName}」`);
+                setActiveVersionId(id);
+                setSelectedIndices(new Set());
+                setResults([]);
+                setInputValue('');
+            };
+
+            const handleSearch = () => {
+                if (!inputValue.trim()) { setResults([]); return; }
+                const ids = inputValue.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+                const matched = dataList.filter(item => ids.includes(item.split('@')[0]));
+                setResults(matched);
+            };
+
+            const handleKeyDown = (e) => {
+                if (e.key === 'Enter') handleSearch();
+            };
+
+            const toggleSelectRecord = (index) => {
+                const next = new Set(selectedIndices);
+                next.has(index) ? next.delete(index) : next.add(index);
+                setSelectedIndices(next);
+            };
+
+            const toggleSelectAll = () => {
+                if (selectedIndices.size === dataList.length && dataList.length > 0) {
+                    setSelectedIndices(new Set());
+                } else {
+                    setSelectedIndices(new Set(dataList.map((_, i) => i)));
+                }
+            };
+
+            const handleDeleteSelected = () => {
+                if (selectedIndices.size === 0) { alert('請先選擇要刪除的測試項目'); return; }
+                if (!confirm(`確定要刪除選中的 ${selectedIndices.size} 筆測試項目嗎？`)) return;
+                updateVersionItems(activeVersionId, prev => prev.filter((_, i) => !selectedIndices.has(i)));
+                setSelectedIndices(new Set());
+            };
+
+            const handleDeleteRecord = (index) => {
+                if (!confirm('確定要刪除這筆測試項目嗎？')) return;
+                updateVersionItems(activeVersionId, prev => prev.filter((_, i) => i !== index));
+                const nextSelected = new Set(selectedIndices);
+                nextSelected.delete(index);
+                setSelectedIndices(nextSelected);
+            };
+
+            const parseXlsx = (data, existingItems) => {
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                const existingIds = new Set(existingItems.map(item => item.split('@')[0]));
+                const imported = [];
+                let duplicates = 0;
+
+                const start = (rows[0]?.[0] === '編號1' || String(rows[0]?.[0]).startsWith('編號')) ? 1 : 0;
+
+                for (let i = start; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (!row || row.length === 0) continue;
+                    let record = '';
+
+                    if (row.length === 1 && typeof row[0] === 'string' && row[0].includes('@')) {
+                        record = row[0].trim();
+                    } else if (row.length >= 2) {
+                        const col0 = String(row[0] || '').trim();
+                        const col1 = String(row[1] || '').trim();
+                        if (row.length >= 3 && row[2] !== undefined && String(row[2]).trim() !== '') {
+                            const col2 = String(row[2]).trim();
+                            if (col0 && col1 && col2) record = `${col0}@${col1} ${col2}`;
+                        } else if (col0.includes('@') && col1) {
+                            record = `${col0} ${col1}`;
+                        }
+                    }
+
+                    if (!record) continue;
+                    const id = record.split('@')[0];
+                    if (!existingIds.has(id)) {
+                        imported.push(record);
+                        existingIds.add(id);
+                    } else { duplicates++; }
+                }
+                return { imported, duplicates };
+            };
+
+            const handleCopyResults = () => {
+                if (results.length === 0) { alert('沒有可複製的查詢結果'); return; }
+                const resultText = results.join(', ');
+
+                const timeString = new Date().toLocaleString('zh-TW', { 
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true 
+                });
+
+                navigator.clipboard.writeText(resultText)
+                    .then(() => {
+                        setQueryHistory(prev => [...prev, {
+                            id: Date.now(),
+                            versionName: activeVersion ? activeVersion.name : '未選擇版本',
+                            queryText: inputValue.trim(),
+                            resultText: resultText,
+                            timestamp: timeString
+                        }].slice(-50));
+                    })
+                    .catch(() => alert('複製失敗，請手動複製。'));
+            };
+
+            const handleDeleteHistoryItem = (id) => {
+                setQueryHistory(prev => prev.filter(h => h.id !== id));
+            };
+
+            const handleExportHistory = () => {
+                if (queryHistory.length === 0) { alert('沒有查詢歷史可以匯出'); return; }
+                const exportData = queryHistory.map((h, i) => ({
+                    '序號': i + 1, '時間': h.timestamp, '查詢版本': h.versionName || '無', '輸入條件': h.queryText, '查詢結果': h.resultText
+                }));
+                const ws = XLSX.utils.json_to_sheet(exportData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, '查詢歷史');
+                XLSX.writeFile(wb, `查詢歷史_${new Date().toISOString().slice(0, 10)}.csv`, { bookType: 'csv' });
+            };
+
+            return e('div', { className: 'min-h-screen flex relative' },
+                e('input', { ref: fileInputRef, type: 'file', accept: '.xlsx,.xls,.csv', className: 'hidden' }),
+                e('input', { ref: versionFileRef, type: 'file', accept: '.xlsx,.xls,.csv', className: 'hidden' }),
+                e('input', { ref: folderInputRef, type: 'file', webkitdirectory: '', directory: '', onChange: handleFolderSelect, className: 'hidden' }),
+
+                alarmMessage && e('div', { className: 'fixed top-4 right-4 z-50 transform transition-all duration-300 ease-out bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-slate-700 animate-bounce' },
+                    e('i', { 'data-lucide': 'bell', className: 'w-5 h-5 text-amber-400 shrink-0' }),
+                    e('span', { className: 'text-sm font-medium' }, alarmMessage)
+                ),
+
+                // ── 左側：版本管理 Sidebar ──
+                e('aside', { className: 'w-64 shrink-0 bg-white border-r border-gray-200 shadow-md flex flex-col' },
+                    e('div', { className: 'bg-gradient-to-b from-slate-700 to-slate-800 px-4 py-5' },
+                        e('h2', { className: 'text-white font-bold text-base flex items-center gap-2' }, e('i', { 'data-lucide': 'folder-open', className: 'w-5 h-5' }), '版本管理'),
+                        e('p', { className: 'text-slate-400 text-xs mt-0.5' }, '測試項目版本清單管理')
+                    ),
+                    e('div', { className: 'flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar' },
+                        versions.length === 0 ? e('p', { className: 'text-gray-400 text-xs text-center py-6 leading-relaxed' }, '尚無版本\n請點擊下方\n按鈕建立') :
+                        versions.map(v => {
+                            const isActive = v.id === activeVersionId;
+                            return e('div', { key: v.id, className: `rounded-lg border transition-all pb-1 ${isActive ? 'bg-blue-50 border-blue-300 shadow-sm' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}` },
+                                e('button', { onClick: () => handleLoadVersion(v.id, v.name), className: 'w-full text-left px-3 py-2.5 flex items-start gap-2' },
+                                    e('i', { 'data-lucide': isActive ? 'folder-open' : 'folder', className: `w-4 h-4 mt-0.5 shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-400'}` }),
+                                    e('div', { className: 'flex-1 min-w-0' },
+                                        e('p', { className: `text-sm font-semibold truncate ${isActive ? 'text-blue-700' : 'text-gray-700'}` }, v.name),
+                                        e('p', { className: 'text-xs text-gray-400 mt-0.5' }, `${v.items.length} 筆項目`)
+                                    )
+                                )
+                            );
+                        })
+                    ),
+                    e('div', { className: 'p-3 border-t border-gray-200 bg-gray-50 space-y-2' },
+                        showNewVersionInput ? e('div', { className: 'space-y-2' },
+                            e('input', {
+                                autoFocus: true, type: 'text', value: newVersionName,
+                                onChange: e => setNewVersionName(e.target.value),
+                                onKeyDown: e => { if (e.key === 'Enter') handleCreateVersion(); if (e.key === 'Escape') { setShowNewVersionInput(false); setNewVersionName(''); } },
+                                placeholder: '版本名稱…', className: 'w-full px-2.5 py-1.5 text-sm border-2 border-blue-400 rounded-lg focus:outline-none'
+                            }),
+                            e('div', { className: 'flex gap-1.5' },
+                                e('button', { onClick: handleCreateVersion, className: 'flex-1 py-1.5 bg-blue-600 text-white text-xs rounded-lg font-semibold hover:bg-blue-700' }, '建立'),
+                                e('button', { onClick: () => { setShowNewVersionInput(false); setNewVersionName(''); }, className: 'px-2.5 py-1.5 bg-gray-200 text-gray-600 text-xs rounded-lg' }, e('i', { 'data-lucide': 'x', className: 'w-3 h-3' }))
+                            )
+                        ) : e('button', { onClick: () => setShowNewVersionInput(true), className: 'w-full py-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-300 rounded-lg hover:bg-blue-100' }, e('i', { 'data-lucide': 'plus', className: 'w-4 h-4' }), '手動新增版本'),
+                        
+                        e('button', { 
+                            onClick: () => folderInputRef.current?.click(), 
+                            className: 'w-full py-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-300 rounded-lg hover:bg-emerald-100 transition-colors' 
+                        }, e('i', { 'data-lucide': 'scan', className: 'w-4 h-4' }), '掃描目錄 Excel 建立版本')
+                    )
+                ),
+
+                // ── 主要工作區域 ──
+                e('main', { className: 'flex-1 overflow-auto p-6' },
+                    e('div', { className: 'max-w-4xl mx-auto space-y-6' },
+                        activeVersion ? e('div', { className: 'bg-blue-600 text-white rounded-xl px-5 py-3 flex items-center gap-3 shadow' },
+                            e('i', { 'data-lucide': 'folder-open', className: 'w-5 h-5' }),
+                            e('span', { className: 'font-semibold' }, `目前版本：${activeVersion.name}`),
+                            e('span', { className: 'text-blue-200 text-sm' }, `（${dataList.length} 筆測試項目）`)
+                        ) : null,
+
+                        e('div', { className: 'flex flex-col gap-6' },
+                            
+                            e('div', { className: 'bg-white rounded-2xl shadow-xl overflow-hidden' },
+                                e('div', { className: 'bg-gradient-to-r from-blue-600 to-indigo-600 p-5' },
+                                    e('h1', { className: 'text-white text-xl font-bold text-center' }, '測試項目查詢'),
+                                    e('p', { className: 'text-blue-100 text-center text-sm mt-1' }, '輸入編號1查詢完整測試項目')
+                                ),
+                                e('div', { className: 'p-5' },
+                                    !activeVersion ? e('div', { className: 'mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700 font-medium' }, '請先在左側選單選擇或新增一個版本') : null,
+                                    e('div', { className: 'mb-5' },
+                                        e('label', { className: 'block text-gray-700 font-semibold mb-2 text-sm' }, '輸入編號1：'),
+                                        e('div', { className: 'flex gap-2' },
+                                            e('input', {
+                                                type: 'text', value: inputValue, onChange: e => setInputValue(e.target.value), onKeyDown: handleKeyDown,
+                                                placeholder: '例如: 101,103,105', disabled: !activeVersion,
+                                                className: 'flex-1 px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 disabled:bg-gray-100'
+                                            }),
+                                            e('button', { onClick: handleSearch, disabled: !activeVersion, className: 'px-4 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 flex items-center gap-2 disabled:bg-gray-400' }, e('i', { 'data-lucide': 'search', className: 'w-4 h-4' }), '查詢')
+                                        )
+                                    ),
+                                    e('div', null,
+                                        e('div', { className: 'flex items-center justify-between mb-2' },
+                                            e('label', { className: 'block text-gray-700 font-semibold text-sm' }, '查詢結果：'),
+                                            results.length > 0 ? e('button', { onClick: handleCopyResults, className: 'px-3 py-1 text-xs bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-1' }, e('i', { 'data-lucide': 'copy', className: 'w-3 h-3' }), '複製結果') : null
+                                        ),
+                                        e('div', { className: 'min-h-[150px] border-2 border-gray-200 rounded-lg p-4 bg-gray-50' },
+                                            (results.length === 0 && inputValue.trim() !== '') ? e('p', { className: 'text-center text-gray-500 py-6 text-sm' }, '未找到匹配的記錄') : null,
+                                            (results.length === 0 && inputValue.trim() === '') ? e('p', { className: 'text-center text-gray-400 py-6 text-sm' }, '請在上方輸入編號1進行查詢') : null,
+                                            results.length > 0 ? e('div', { className: 'space-y-2' },
+                                                results.map((r, i) => e('div', { key: i, className: 'bg-white p-3 rounded-lg shadow-sm border-l-4 border-blue-500' }, e('div', { className: 'font-mono text-sm text-gray-800' }, r)))
+                                            ) : null
+                                        )
+                                    )
+                                )
+                            ),
+
+                            queryHistory.length > 0 ? e('div', { className: 'bg-white rounded-2xl shadow-xl overflow-hidden' },
+                                e('div', { className: 'bg-gradient-to-r from-purple-600 to-pink-600 p-5 flex items-center justify-between' },
+                                    e('div', null,
+                                        e('h2', { className: 'text-white font-bold text-sm sm:text-base' }, `查詢歷史記錄 (${queryHistory.length})`),
+                                        e('p', { className: 'text-purple-200 text-xs mt-0.5' }, '記錄每次複製的查詢結果與當時查詢的版本')
+                                    ),
+                                    e('div', { className: 'flex gap-2' },
+                                        e('button', { onClick: handleExportHistory, className: 'px-3 py-1.5 bg-white text-purple-700 text-xs rounded-lg font-semibold flex items-center gap-1' }, e('i', { 'data-lucide': 'download', className: 'w-3 h-3' }), '匯出 CSV'),
+                                        e('button', { onClick: () => { if (confirm('確定要清空所有查詢歷史嗎？')) setQueryHistory([]); }, className: 'px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg font-semibold' }, '清空')
+                                    )
+                                ),
+                                e('div', { ref: historyContainerRef, className: 'max-h-[250px] overflow-auto custom-scrollbar p-4' },
+                                    e('table', { className: 'w-full text-sm border-collapse' },
+                                        e('thead', null,
+                                            e('tr', { className: 'bg-gray-100 border-b border-gray-300 text-left text-gray-700 text-xs' },
+                                                e('th', { className: 'px-3 py-2 w-12' }, '序號'),
+                                                e('th', { className: 'px-3 py-2 w-36 truncate' }, '查詢版本'),
+                                                e('th', { className: 'px-3 py-2' }, '查詢結果'),
+                                                e('th', { className: 'px-3 py-2 whitespace-nowrap w-40' }, '時間'),
+                                                e('th', { className: 'px-3 py-2 w-12 text-center' }, '操作')
+                                            )
+                                        ),
+                                        e('tbody', { className: 'divide-y divide-gray-200 text-xs' },
+                                            queryHistory.map((h, i) => e('tr', { key: h.id, className: 'hover:bg-gray-50 group transition-colors' },
+                                                e('td', { className: 'px-3 py-2.5 text-gray-600' }, i + 1),
+                                                e('td', { className: 'px-3 py-2.5 font-medium text-purple-700 truncate max-w-[150px]' }, h.versionName || '預設版本'),
+                                                e('td', { className: 'px-3 py-2.5 font-mono text-gray-800 break-all' }, h.resultText),
+                                                e('td', { className: 'px-3 py-2.5 text-gray-500 whitespace-nowrap' }, h.timestamp),
+                                                e('td', { className: 'px-3 py-2.5 text-center' }, 
+                                                    e('button', { 
+                                                        onClick: () => handleDeleteHistoryItem(h.id),
+                                                        className: 'p-1 text-red-500 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity' 
+                                                    }, e('i', { 'data-lucide': 'trash-2', className: 'w-3.5 h-3.5' }))
+                                                )
+                                            ))
+                                        )
+                                    )
+                                )
+                            ) : null,
+
+                            e('div', { className: 'bg-white rounded-2xl shadow-xl overflow-hidden' },
+                                e('div', { 
+                                    onClick: () => setIsManageVisible(!isManageVisible),
+                                    className: 'bg-gradient-to-r from-emerald-600 to-green-600 p-5 flex items-center justify-between cursor-pointer select-none hover:brightness-95 transition-all' 
+                                    },
+                                    e('div', null,
+                                        e('h1', { className: 'text-white text-xl font-bold flex items-center gap-2' }, 
+                                            '測試項目管理',
+                                            e('span', { className: 'text-xs bg-emerald-500 text-emerald-100 px-2 py-0.5 rounded-full font-normal' }, isManageVisible ? '點擊隱藏' : '點擊展開')
+                                        ),
+                                        e('p', { className: 'text-green-100 text-sm mt-1' }, activeVersion ? `目前版本：${activeVersion.name}` : '請先選擇版本')
+                                    ),
+                                    e('i', { 'data-lucide': isManageVisible ? 'chevron-up' : 'chevron-down', className: 'w-6 h-6 text-white' })
+                                ),
+                                isManageVisible && e('div', { className: 'p-5 border-t border-gray-100 transition-all duration-300' },
+                                    e('div', null,
+                                        e('div', { className: 'flex items-center justify-between mb-2' },
+                                            e('h3', { className: 'font-semibold text-gray-700 text-sm' }, `現有測試項目 (${dataList.length} 筆)`, selectedIndices.size > 0 ? e('span', { className: 'text-blue-600 ml-2' }, `（已選 ${selectedIndices.size}）`) : null),
+                                            e('div', { className: 'flex gap-1.5' },
+                                                e('button', { onClick: toggleSelectAll, disabled: dataList.length === 0, className: 'px-2 py-1 text-xs bg-blue-600 text-white rounded-lg flex items-center gap-1 disabled:bg-gray-300' }, e('i', { 'data-lucide': selectedIndices.size === dataList.length && dataList.length > 0 ? 'square' : 'check-square', className: 'w-3 h-3' }), selectedIndices.size === dataList.length && dataList.length > 0 ? '取消全選' : '全選'),
+                                                e('button', { onClick: handleDeleteSelected, disabled: selectedIndices.size === 0, className: 'px-2 py-1 text-xs bg-red-600 text-white rounded-lg flex items-center gap-1 disabled:bg-gray-300' }, e('i', { 'data-lucide': 'trash-2', className: 'w-3 h-3' }), '刪除選中')
+                                            )
+                                        ),
+                                        e('div', { className: 'max-h-64 overflow-y-auto border-2 border-gray-200 rounded-lg bg-gray-50 custom-scrollbar' },
+                                            dataList.length === 0 ? e('div', { className: 'text-center text-gray-400 py-8 text-sm' }, activeVersion ? '尚無測試項目' : '請先在左側選擇版本') :
+                                            e('div', { className: 'divide-y divide-gray-200' },
+                                                dataList.map((item, idx) => e('div', { key: idx, className: `px-3 py-2 flex items-center gap-2 group transition-colors ${selectedIndices.has(idx) ? 'bg-blue-50' : 'hover:bg-gray-100'}` },
+                                                    e('input', { type: 'checkbox', checked: selectedIndices.has(idx), onChange: () => toggleSelectRecord(idx), className: 'w-3.5 h-3.5 text-blue-600 rounded cursor-pointer' }),
+                                                    e('div', { className: 'font-mono text-xs text-gray-800 flex-1 truncate' }, item),
+                                                    e('button', { onClick: () => handleDeleteRecord(idx), className: 'p-1 text-red-500 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity' }, e('i', { 'data-lucide': 'trash-2', className: 'w-3.5 h-3.5' }))
+                                                ))
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(e(App));
+    </script>
+</body>
+</html>
