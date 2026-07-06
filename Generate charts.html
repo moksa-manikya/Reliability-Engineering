@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圖表產生Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .input-panel {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .chart-panel {
+            flex: 2;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            min-height: 450px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #495057;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        /* 💡 新增：滑桿與數字輸入框的並排樣式 */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .slider-container input[type="range"] {
+            flex: 1;
+        }
+        .slider-container input[type="number"] {
+            width: 60px;
+            padding: 4px;
+            text-align: center;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            box-sizing: border-box;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .hint {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2 style="text-align: center;">圖表工具</h2>
+
+    <div class="container">
+        <div class="input-panel">
+            <h3>1. 輸入設定與數據</h3>
+            
+            <div class="form-group">
+                <label for="chartTitleInput">圖表標題：</label>
+                <input type="text" id="chartTitleInput" value="分佈圖)" placeholder="請輸入圖表標題...">
+            </div>
+
+            <div class="form-group">
+                <label for="sizeScaleSlider">圓點大小縮放比例：</label>
+                <div class="slider-container">
+                    <input type="range" id="sizeScaleSlider" min="0.1" max="3.0" step="0.1" value="0.6" oninput="updateBubbleSize(this.value)">
+                    <input type="number" id="sizeScaleNumber" min="0.1" max="3.0" step="0.1" value="0.6" oninput="updateBubbleSize(this.value)">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="excelPasteArea">Excel 數據 (X,Y,Z,P/F 欄)：</label>
+                <p class="hint">複製 Excel 數據後在下方貼上 (包含或不包含標題皆可)。</p>
+                <textarea id="excelPasteArea" placeholder="範例格式：&#10;10&#9;20&#9;15&#9;PASS&#10;15&#9;25&#9;10&#9;PASS&#10;20&#9;30&#9;30&#9;FAIL"></textarea>
+            </div>
+            
+            <button onclick="processData()">產生 / 更新圖表</button>
+        </div>
+
+        <div class="chart-panel">
+            <h3>2. 圖表預覽</h3>
+            <div style="position: relative; height:450px; width:100%">
+                <canvas id="pogoChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+<script>
+    let myChart = null; 
+    let cachedRawLines = []; // 暫存解析後的行數據，以便只調整圓點大小時不用重新剪貼
+
+    // 初始化圖表
+    function initChart(passData = [], failData = [], axisConfig = { min: 0, max: 50, step: 5 }, titleText = "Pogo Pin") {
+        const ctx = document.getElementById('pogoChart').getContext('2d');
+        
+        if (myChart) {
+            myChart.destroy();
+        }
+
+        myChart = new Chart(ctx, {
+            type: 'bubble',
+            data: {
+                datasets: [
+                    {
+                        label: 'PASS',
+                        data: passData,
+                        backgroundColor: 'rgba(0, 176, 80, 0.4)', 
+                        borderColor: 'rgb(0, 176, 80)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'FAIL',
+                        data: failData,
+                        backgroundColor: 'rgba(255, 0, 0, 1)',   
+                        borderColor: 'rgb(139, 0, 0)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: titleText, 
+                        font: { size: 16 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: (X: ${context.raw.x}, Y: ${context.raw.y}, Z: ${context.raw.zOriginal})`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { 
+                        title: { display: true, text: 'X 軸' },
+                        min: axisConfig.min,
+                        max: axisConfig.max,
+                        ticks: { stepSize: axisConfig.step },
+                        grid: { display: true, color: '#ccc', borderDash: [5, 5] } 
+                    },
+                    y: { 
+                        title: { display: true, text: 'Y 軸' },
+                        min: axisConfig.min,
+                        max: axisConfig.max,
+                        ticks: { stepSize: axisConfig.step },
+                        grid: { display: true, color: '#ccc', borderDash: [5, 5] } 
+                    }
+                }
+            }
+        });
+    }
+
+    // 💡 核心變更：滑桿拉動時，直接更新現有圖表的氣泡半徑 (r)，不需要使用者重新按按鈕
+    function updateBubbleSize(scaleValue) {
+        // 同步拉桿和數字輸入框的值
+        document.getElementById('sizeScaleSlider').value = scaleValue;
+        document.getElementById('sizeScaleNumber').value = scaleValue;
+
+        const scale = parseFloat(scaleValue);
+        if (isNaN(scale) || !myChart) return;
+
+        // 直接修改 Chart.js 內部儲存的數據並重新渲染，速度極快
+        myChart.data.datasets.forEach(dataset => {
+            dataset.data.forEach(point => {
+                point.r = point.zOriginal * scale; // 依據原來的 Z 值乘以新倍率
+            });
+        });
+        
+        myChart.update(); // 刷新圖表
+    }
+
+    // 解析貼上內容的主程式
+    function processData() {
+        let titleText = document.getElementById('chartTitleInput').value.trim();
+        if(!titleText) titleText = "Pogo Pin";
+
+        const scale = parseFloat(document.getElementById('sizeScaleSlider').value) || 0.6;
+
+        const rawText = document.getElementById('excelPasteArea').value.trim();
+        if (!rawText) {
+            alert('請先貼上一些數據！');
+            return;
+        }
+
+        const lines = rawText.split('\n');
+        const passData = [];
+        const failData = [];
+
+        let minVal = Infinity;
+        let maxVal = -Infinity;
+
+        lines.forEach((line) => {
+            const columns = line.split('\t');
+            
+            const x = parseFloat(columns[0]);
+            const y = parseFloat(columns[1]);
+            const z = parseFloat(columns[2]);
+            const status = columns[3] ? columns[3].trim().toUpperCase() : '';
+
+            if (!isNaN(x) && !isNaN(y) && !isNaN(z)) {
+                // 💡 圓點半徑由 scale 變數動態控制
+                const dataPoint = { x: x, y: y, r: z * scale, zOriginal: z };
+
+                if (status === 'PASS') {
+                    passData.push(dataPoint);
+                } else {
+                    failData.push(dataPoint);
+                }
+
+                minVal = Math.min(minVal, x, y);
+                maxVal = Math.max(maxVal, x, y);
+            }
+        });
+
+        if (passData.length === 0 && failData.length === 0) {
+            alert('無法解析數據，請檢查格式是否為 Excel 的 A-D 欄');
+            return;
+        }
+
+        let axisMin = Math.floor((minVal - 5) / 5) * 5;
+        let axisMax = Math.ceil((maxVal + 5) / 5) * 5;
+        
+        if (axisMax - axisMin < 20) {
+            axisMax = axisMin + 20;
+        }
+
+        let step = 5;
+        const range = axisMax - axisMin;
+        if (range > 100) step = 20;
+        else if (range > 50) step = 10;
+
+        const axisConfig = { min: axisMin, max: axisMax, step: step };
+
+        // 初始化/更新圖表
+        initChart(passData, failData, axisConfig, titleText);
+    }
+
+    window.onload = function() {
+        initChart();
+    };
+</script>
+
+</body>
+</html>
