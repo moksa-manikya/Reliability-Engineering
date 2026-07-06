@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>24小時制 - Excel 數據轉時間溫度趨勢圖</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 sm:p-8 flex flex-col items-center">
+
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-4xl">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6 text-center">📊 溫度與時間趨勢圖 (24小時制)</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="md:col-span-1 flex flex-col gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <div>
+                    <label for="startTime" class="block font-medium text-gray-700 mb-1 text-sm">1. 初始時間 (24小時制 HH:mm:ss)：</label>
+                    <input type="text" id="startTime" value="13:15:00" placeholder="例如 13:15:00"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 font-mono">
+                    <span class="text-xs text-gray-400 mt-1 block">請依 24 小時制格式輸入（時:分:秒）</span>
+                </div>
+                
+                <div class="flex-1 flex flex-col">
+                    <label for="excelData" class="block font-medium text-gray-700 mb-1 text-sm">
+                        2. 貼上 Excel 數據：
+                        <span class="text-xs text-gray-400 block">(包含次數與溫度，免刪標頭)</span>
+                    </label>
+                    <textarea id="excelData" rows="10" 
+                              class="w-full flex-1 border border-gray-300 rounded-lg p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                              placeholder="請直接從 Excel 複製兩欄貼到這裡...&#10;例如：&#10;1&#9;31&#10;2&#9;33"></textarea>
+                </div>
+
+                <button onclick="processAndDraw()" 
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition duration-200 shadow-md">
+                    解析數據並繪圖
+                </button>
+            </div>
+
+            <div class="md:col-span-2 border border-gray-200 rounded-xl p-4 flex flex-col justify-center bg-white relative min-h-[400px]">
+                <canvas id="tempChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 預設填入你圖片中的數據
+        const defaultExcelText = "Number\tTemp. (°C)\n1\t31\n2\t33\n3\t35\n4\t36\n5\t36\n6\t36\n7\t37\n8\t37";
+        document.getElementById('excelData').value = defaultExcelText;
+
+        let chartInstance = null;
+
+        // 將 24 小時制 "HH:mm:ss" 轉換為 Date 物件
+        function parseTime24h(timeStr) {
+            const timePattern = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$/;
+            if (!timePattern.test(timeStr.trim())) {
+                return null;
+            }
+            const today = new Date();
+            const parts = timeStr.split(':');
+            today.setHours(parseInt(parts[0], 10));
+            today.setMinutes(parseInt(parts[1], 10));
+            today.setSeconds(parseInt(parts[2], 10));
+            return today;
+        }
+
+        // 強制轉成 24 小時制的 "HH:mm:ss" 字串
+        function formatTime24h(date) {
+            const h = String(date.getHours()).padStart(2, '0');
+            const m = String(date.getMinutes()).padStart(2, '0');
+            const s = String(date.getSeconds()).padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        // 解析貼入的文字並繪圖
+        function processAndDraw() {
+            const timeInput = document.getElementById('startTime').value.trim();
+            const rawText = document.getElementById('excelData').value.trim();
+
+            let baseDate = parseTime24h(timeInput);
+            if (!baseDate) {
+                return alert('請輸入正確的 24 小時制時間格式！範例：13:15:00 (範圍 00:00:00 至 23:59:59)');
+            }
+            if (!rawText) return alert('請貼入 Excel 數據！');
+            
+            const labels = [];
+            const temperatures = [];
+            
+            // 按行切分資料
+            const lines = rawText.split('\n');
+            let dataIndex = 0; 
+
+            lines.forEach(line => {
+                const columns = line.split(/[\t,]+/); 
+                
+                if (columns.length >= 2) {
+                    const countVal = columns[0].trim();
+                    const tempVal = columns[1].trim();
+
+                    // 過濾非數字標頭
+                    if (!isNaN(countVal) && countVal !== '' && !isNaN(tempVal) && tempVal !== '') {
+                        const temp = parseFloat(tempVal);
+                        
+                        // 計算遞增時間（每增加一筆就加 5 秒）
+                        let currentDate = new Date(baseDate.getTime() + dataIndex * 5 * 1000);
+                        
+                        labels.push(formatTime24h(currentDate));
+                        temperatures.push(temp);
+                        
+                        dataIndex++; 
+                    }
+                }
+            });
+
+            if (temperatures.length === 0) {
+                return alert('無法從貼上的文字中解析出有效的數字數據，請確認 Excel 內容是否正確。');
+            }
+
+            // 清除舊圖表
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            // 繪製 Chart.js 圖表
+            const ctx = document.getElementById('tempChart').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '溫度 (°C)',
+                        data: temperatures,
+                        borderColor: 'rgb(59, 130, 246)', 
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 3,
+                        pointBackgroundColor: 'rgb(29, 78, 216)',
+                        pointRadius: 4,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: '時間 (24小時制，每 5 秒遞增)' }
+                        },
+                        y: {
+                            title: { display: true, text: '溫度 (°C)' },
+                            ticks: {
+                                stepSize: 0.5 // 👈 這裡強制設定 y 軸刻度間隔為 0.5 度
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 網頁載入時預設執行一次
+        window.onload = processAndDraw;
+    </script>
+</body>
+</html>
