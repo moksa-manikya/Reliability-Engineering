@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>表格篩選工具</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            border: '#e1e4e8',
+            background: '#fafbfc',
+            card: '#ffffff',
+            foreground: '#24292f',
+            muted: { foreground: '#57606a' },
+            accent: '#f6f8fa',
+            secondary: '#f6f8fa',
+            primary: { DEFAULT: '#0969da', foreground: '#ffffff' },
+            destructive: { DEFAULT: '#cf222e' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="min-h-screen bg-background text-foreground">
+
+  <header class="bg-card border-b border-border px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <i data-lucide="file-spreadsheet" class="w-[18px] h-[18px] text-primary"></i>
+      <span class="font-semibold text-sm">表格篩選工具</span>
+    </div>
+    <div id="file-info" class="hidden flex items-center gap-2 text-xs text-muted-foreground">
+      <span id="info-filename" class="px-2 py-1 rounded bg-secondary border border-border truncate max-w-[200px]"></span>
+      <span id="info-stats"></span>
+    </div>
+  </header>
+
+  <div class="max-w-full px-6 py-5 space-y-4">
+    <div id="upload-zone" class="border-2 border-dashed border-border bg-card hover:border-primary/50 hover:bg-accent/40 rounded-xl p-16 flex flex-col items-center gap-4 cursor-pointer transition-colors">
+      <div class="w-14 h-14 rounded-full bg-accent flex items-center justify-center">
+        <i data-lucide="upload" class="w-6 h-6 text-primary"></i>
+      </div>
+      <div class="text-center">
+        <p class="font-semibold text-foreground">拖曳檔案至此，或點擊上傳</p>
+        <p class="text-xs text-muted-foreground mt-1">支援 CSV、XLS、XLSX 格式</p>
+      </div>
+      <input id="file-input" type="file" accept=".csv,.xls,.xlsx" class="hidden">
+    </div>
+
+    <div id="error-alert" class="hidden flex items-center gap-2 text-destructive text-sm bg-red-50 border border-destructive/25 rounded-lg px-4 py-2.5">
+      <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+      <span id="error-msg"></span>
+    </div>
+
+    <div id="sheet-tabs" class="hidden flex gap-1"></div>
+
+    <div id="workspace" class="hidden space-y-4">
+      
+      <div class="bg-card border border-border rounded-xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-foreground">點選欄位以篩選</p>
+            <p id="col-count-text" class="text-xs text-muted-foreground mt-0.5"></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="selectAllCols()" class="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 px-2.5 py-1.5 border border-primary/30 bg-accent rounded-lg transition-colors">
+              <i data-lucide="check-square" class="w-3.5 h-3.5"></i>全選
+            </button>
+            <button onclick="clearAllCols()" class="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2.5 py-1.5 border border-border bg-secondary rounded-lg transition-colors">
+              <i data-lucide="square" class="w-3.5 h-3.5"></i>清除
+            </button>
+            <button onclick="resetUpload()" class="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2.5 py-1.5 border border-border rounded-lg transition-colors">
+              <i data-lucide="upload" class="w-3.5 h-3.5"></i>重新上傳
+            </button>
+          </div>
+        </div>
+        <div id="col-chips" class="flex flex-wrap gap-1.5"></div>
+      </div>
+
+      <div class="bg-card border border-border rounded-xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-foreground">序號顯示</p>
+            <p id="serial-count-text" class="text-xs text-muted-foreground mt-0.5"></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="selectAllSerials()" class="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 px-2.5 py-1.5 border border-primary/30 bg-accent rounded-lg transition-colors">
+              <i data-lucide="check-square" class="w-3.5 h-3.5"></i>全選
+            </button>
+            <button onclick="clearAllSerials()" class="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2.5 py-1.5 border border-border bg-secondary rounded-lg transition-colors">
+              <i data-lucide="square" class="w-3.5 h-3.5"></i>清除
+            </button>
+          </div>
+        </div>
+        <div id="serial-chips" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1"></div>
+      </div>
+
+      <div id="empty-prompt" class="bg-secondary/50 border border-dashed border-border rounded-xl p-6 text-center">
+        <p class="text-sm text-muted-foreground">請點選上方欄位以顯示表格與圖表</p>
+      </div>
+
+      <div id="view-toolbar" class="hidden flex items-center justify-between">
+        <div class="flex items-center bg-secondary rounded-lg p-0.5 border border-border">
+          <button id="btn-view-table" onclick="setViewMode('table')" class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs bg-card text-foreground shadow-sm font-medium">
+            <i data-lucide="table" class="w-3.5 h-3.5"></i>表格
+          </button>
+          <button id="btn-view-chart" onclick="setViewMode('chart')" class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs text-muted-foreground hover:text-foreground">
+            <i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i>圖表
+          </button>
+        </div>
+        <button onclick="handleExport()" class="flex items-center gap-1.5 text-xs bg-card hover:bg-secondary text-foreground px-3 py-2 border border-border rounded-lg transition-colors">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i>匯出 CSV
+        </button>
+      </div>
+
+      <div id="table-view" class="hidden bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+        <div class="overflow-auto max-h-[60vh]">
+          <table class="w-full text-sm border-collapse text-left">
+            <thead id="table-head" class="bg-secondary sticky top-0 z-10"></thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+        <div class="px-4 py-2 border-t border-border bg-secondary/40 flex items-center justify-between text-xs text-muted-foreground">
+          <span id="table-footer-cols"></span>
+          <span id="table-footer-rows"></span>
+        </div>
+      </div>
+
+      <div id="chart-view" class="hidden bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-border">
+          <h2 class="font-semibold text-sm text-foreground">折線圖</h2>
+          <p class="text-xs text-muted-foreground mt-0.5">X 軸：篩選欄位標頭 · 每條線代表一個序號（A 欄）</p>
+        </div>
+        <div class="p-5">
+          <div id="chart-empty" class="hidden flex items-center justify-center h-64 text-muted-foreground text-sm">
+            請同時選取 A 欄以外的欄位以繪製折線圖
+          </div>
+          <div id="chart-container" class="relative h-[420px] w-full">
+            <canvas id="mixChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // 狀態變數
+    let currentWorkbook = null;
+    let sheetNames = [];
+    let activeSheetName = "";
+    let currentFilename = "";
+    
+    let rawHeaders = [];
+    let rawRows = [];
+    let allSerials = [];
+    
+    let selectedCols = new Set();
+    let selectedSerials = new Set();
+    let viewMode = "table";
+    let myChart = null;
+
+    const LINE_COLORS = [
+      "#0969da", "#2da44e", "#bf8700", "#cf222e", "#8250df",
+      "#0a7bca", "#1a7f37", "#9a6700", "#a40e26", "#6639ba",
+      "#0550ae", "#116329", "#7d4e00", "#82071e", "#512a97",
+    ];
+
+    // 初始化 Lucide 圖標
+    lucide.createIcons();
+
+    // 欄位索引轉英文字母 (0 -> A, 25 -> Z, 26 -> AA)
+    function colIndexToLetter(index) {
+      let letter = "";
+      let n = index + 1;
+      while (n > 0) {
+        const rem = (n - 1) % 26;
+        letter = String.fromCharCode(65 + rem) + letter;
+        n = Math.floor((n - 1) / 26);
+      }
+      return letter;
+    }
+
+    // 初始化上傳事件
+    const uploadZone = document.getElementById("upload-zone");
+    const fileInput = document.getElementById("file-input");
+
+    uploadZone.addEventListener("click", () => fileInput.click());
+    uploadZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      uploadZone.classList.add("border-primary", "bg-accent");
+    });
+    uploadZone.addEventListener("dragleave", () => {
+      uploadZone.classList.remove("border-primary", "bg-accent");
+    });
+    uploadZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove("border-primary", "bg-accent");
+      if (e.dataTransfer.files.length > 0) loadFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) loadFile(e.target.files[0]);
+    });
+
+    function showError(msg) {
+      const alertDiv = document.getElementById("error-alert");
+      document.getElementById("error-msg").innerText = msg;
+      if(msg) alertDiv.classList.remove("hidden");
+      else alertDiv.classList.add("hidden");
+    }
+
+    function resetUpload() {
+      currentWorkbook = null;
+      sheetNames = [];
+      activeSheetName = "";
+      currentFilename = "";
+      rawHeaders = [];
+      rawRows = [];
+      selectedCols.clear();
+      selectedSerials.clear();
+      
+      document.getElementById("upload-zone").classList.remove("hidden");
+      document.getElementById("workspace").classList.add("hidden");
+      document.getElementById("file-info").classList.add("hidden");
+      document.getElementById("sheet-tabs").classList.add("hidden");
+      showError(null);
+      fileInput.value = "";
+    }
+
+    function loadFile(file) {
+      showError(null);
+      currentFilename = file.name;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const wb = XLSX.read(data, { type: "array" });
+          currentWorkbook = wb;
+          sheetNames = wb.SheetNames;
+          
+          document.getElementById("upload-zone").classList.add("hidden");
+          document.getElementById("workspace").classList.remove("hidden");
+          
+          renderTabs();
+          switchSheet(sheetNames[0]);
+        } catch (err) {
+          showError("無法解析檔案，請確認格式為 CSV 或 Excel。");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function renderTabs() {
+      const tabsDiv = document.getElementById("sheet-tabs");
+      tabsDiv.innerHTML = "";
+      if (sheetNames.length > 1) {
+        tabsDiv.classList.remove("hidden");
+        sheetNames.forEach(name => {
+          const btn = document.createElement("button");
+          btn.innerText = name;
+          btn.className = `px-3 py-1 text-xs rounded border transition-colors ${
+            name === activeSheetName 
+              ? "bg-primary text-primary-foreground border-primary" 
+              : "bg-card text-muted-foreground border-border hover:text-foreground"
+          }`;
+          btn.onclick = () => switchSheet(name);
+          tabsDiv.appendChild(btn);
+        });
+      } else {
+        tabsDiv.classList.add("hidden");
+      }
+    }
+
+    function switchSheet(sheetName) {
+      activeSheetName = sheetName;
+      renderTabs();
+      
+      const ws = currentWorkbook.Sheets[sheetName];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+      
+      if (!raw || raw.length === 0) {
+        showError("該工作表為空。");
+        return;
+      }
+
+      rawHeaders = raw[0].map((h, i) => String(h || `欄 ${colIndexToLetter(i)}`));
+      rawRows = raw.slice(1).map(r => rawHeaders.map((_, i) => String(r[i] ?? "")));
+      
+      allSerials = rawRows.map((r, i) => r[0] || `列${i + 1}`);
+      
+      selectedCols.clear();
+      selectedSerials = new Set(allSerials);
+
+      // 更新 Header 資訊
+      document.getElementById("file-info").classList.remove("hidden");
+      document.getElementById("info-filename").innerText = currentFilename;
+      document.getElementById("info-filename").title = currentFilename;
+      document.getElementById("info-stats").innerText = `${rawRows.length} 列 · ${rawHeaders.length} 欄`;
+
+      renderSelectors();
+      updateWorkspaceView();
+    }
+
+    function renderSelectors() {
+      // 渲染欄位晶片
+      document.getElementById("col-count-text").innerText = `已選 0 / ${rawHeaders.length} 欄`;
+      const colChips = document.getElementById("col-chips");
+      colChips.innerHTML = "";
+      rawHeaders.forEach((h, i) => {
+        const letter = colIndexToLetter(i);
+        const btn = document.createElement("button");
+        btn.id = `col-chip-${i}`;
+        btn.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs border transition-all select-none mono border-border bg-secondary text-muted-foreground hover:border-primary/40 hover:text-foreground";
+        btn.title = h;
+        
+        const displayH = h.length > 14 ? h.slice(0, 14) + "…" : h;
+        btn.innerHTML = `<span class="font-bold text-muted-foreground">${letter}</span><span>${displayH}</span>`;
+        btn.onclick = () => toggleCol(i);
+        colChips.appendChild(btn);
+      });
+
+      // 渲染序號晶片
+      document.getElementById("serial-count-text").innerText = `已顯示 ${selectedSerials.size} / ${allSerials.length} 筆`;
+      const serialChips = document.getElementById("serial-chips");
+      serialChips.innerHTML = "";
+      allSerials.forEach((serial, idx) => {
+        const btn = document.createElement("button");
+        btn.id = `serial-chip-${idx}`;
+        btn.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs border transition-all select-none mono border-primary bg-accent text-primary font-medium shadow-sm";
+        btn.title = serial;
+        
+        const color = LINE_COLORS[idx % LINE_COLORS.length];
+        const displayS = serial.length > 22 ? serial.slice(0, 22) + "…" : serial;
+        btn.innerHTML = `<span class="w-2 h-2 rounded-full shrink-0" style="background: ${color}"></span><span>${displayS}</span>`;
+        btn.onclick = () => toggleSerial(serial, idx);
+        serialChips.appendChild(btn);
+      });
+    }
+
+    function toggleCol(i) {
+      if (selectedCols.has(i)) selectedCols.delete(i);
+      else selectedCols.add(i);
+      
+      const btn = document.getElementById(`col-chip-${i}`);
+      const isSelected = selectedCols.has(i);
+      
+      if (isSelected) {
+        btn.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs border transition-all select-none mono border-primary bg-accent text-primary font-medium shadow-sm";
+        btn.querySelector('span').className = "font-bold text-primary";
+        if(!btn.querySelector('.dot')) {
+          const dot = document.createElement('span');
+          dot.className = "w-1.5 h-1.5 rounded-full bg-primary shrink-0 dot";
+          btn.appendChild(dot);
+        }
+      } else {
+        btn.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs border transition-all select-none mono border-border bg-secondary text-muted-foreground hover:border-primary/40 hover:text-foreground";
+        btn.querySelector('span').className = "font-bold text-muted-foreground";
+        const dot = btn.querySelector('.dot');
+        if(dot) dot.remove();
+      }
+      
+      document.getElementById("col-count-text").innerText = `已選 ${selectedCols.size} / ${rawHeaders.length} 欄`;
+      updateWorkspaceView();
+    }
+
+    function selectAllCols() {
+      rawHeaders.forEach((_, i) => { if(!selectedCols.has(i)) toggleCol(i); });
+    }
+
+    function clearAllCols() {
+      rawHeaders.forEach((_, i) => { if(selectedCols.has(i)) toggleCol(i); });
+    }
+
+    function toggleSerial(serial, idx) {
+      if (selectedSerials.has(serial)) selectedSerials.delete(serial);
+      else selectedSerials.add(serial);
+      
+      const btn = document.getElementById(`serial-chip-${idx}`);
+      const isActive = selectedSerials.has(serial);
+      const color = isActive ? LINE_COLORS[idx % LINE_COLORS.length] : "#d0d7de";
+      
+      btn.querySelector('span').style.background = color;
+      if (isActive) {
+        btn.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs border transition-all select-none mono border-primary bg-accent text-primary font-medium shadow-sm";
+      } else {
+        btn.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs border transition-all select-none mono border-border bg-secondary text-muted-foreground hover:border-primary/40 hover:text-foreground";
+      }
+      
+      document.getElementById("serial-count-text").innerText = `已顯示 ${selectedSerials.size} / ${allSerials.length} 筆`;
+      updateWorkspaceView();
+    }
+
+    function selectAllSerials() {
+      allSerials.forEach((s, idx) => { if(!selectedSerials.has(s)) toggleSerial(s, idx); });
+    }
+
+    function clearAllSerials() {
+      allSerials.forEach((s, idx) => { if(selectedSerials.has(s)) toggleSerial(s, idx); });
+    }
+
+    function setViewMode(mode) {
+      viewMode = mode;
+      const btnTable = document.getElementById("btn-view-table");
+      const btnChart = document.getElementById("btn-view-chart");
+      
+      if(mode === "table") {
+        btnTable.className = "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs bg-card text-foreground shadow-sm font-medium";
+        btnChart.className = "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs text-muted-foreground hover:text-foreground";
+      } else {
+        btnChart.className = "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs bg-card text-foreground shadow-sm font-medium";
+        btnTable.className = "flex items-center gap-1.5 px-3 py-1.5 rounded text-xs text-muted-foreground hover:text-foreground";
+      }
+      updateWorkspaceView();
+    }
+
+    function getFilteredData() {
+      const sortedIndices = Array.from(selectedCols).sort((a, b) => a - b);
+      const headers = sortedIndices.map(i => rawHeaders[i]);
+      const rows = rawRows
+        .filter((r, i) => selectedSerials.has(r[0] || `列${i + 1}`))
+        .map(r => sortedIndices.map(i => r[i]));
+      return { sortedIndices, headers, rows };
+    }
+
+    function updateWorkspaceView() {
+      const hasFilter = selectedCols.size > 0;
+      
+      if (!hasFilter) {
+        document.getElementById("empty-prompt").classList.remove("hidden");
+        document.getElementById("view-toolbar").classList.add("hidden");
+        document.getElementById("table-view").classList.add("hidden");
+        document.getElementById("chart-view").classList.add("hidden");
+        return;
+      }
+      
+      document.getElementById("empty-prompt").classList.add("hidden");
+      document.getElementById("view-toolbar").classList.remove("hidden");
+      
+      const { sortedIndices, headers, rows } = getFilteredData();
+
+      if (viewMode === "table") {
+        document.getElementById("table-view").classList.remove("hidden");
+        document.getElementById("chart-view").classList.add("hidden");
+        renderTable(sortedIndices, headers, rows);
+      } else {
+        document.getElementById("table-view").classList.add("hidden");
+        document.getElementById("chart-view").classList.remove("hidden");
+        renderChart(sortedIndices);
+      }
+    }
+
+    function renderTable(sortedIndices, headers, rows) {
+      const thead = document.getElementById("table-head");
+      const tbody = document.getElementById("table-body");
+      
+      // Render Head
+      let headHtml = `<tr><th class="px-3 py-2.5 text-left text-muted-foreground font-medium border-r border-b border-border w-10 text-xs mono">#</th>`;
+      headers.forEach((h, i) => {
+        const origIdx = sortedIndices[i];
+        headHtml += `
+          <th class="px-3 py-2.5 text-left font-medium border-r last:border-r-0 border-b border-border whitespace-nowrap">
+            <div class="flex items-center gap-2">
+              <span class="text-primary text-xs font-semibold bg-accent px-1 py-0.5 rounded mono">${colIndexToLetter(origIdx)}</span>
+              <span class="text-foreground text-xs">${h}</span>
+            </div>
+          </th>`;
+      });
+      headHtml += "</tr>";
+      thead.innerHTML = headHtml;
+
+      // Render Body
+      let bodyHtml = "";
+      rows.forEach((row, ri) => {
+        bodyHtml += `<tr class="border-b border-border/60 hover:bg-secondary/60 transition-colors">`;
+        bodyHtml += `<td class="px-3 py-1.5 text-muted-foreground text-xs border-r border-border/60 select-none mono">${ri + 1}</td>`;
+        row.forEach((cell, ci) => {
+          const origIdx = sortedIndices[ci];
+          const isFirstCol = origIdx === 0;
+          const style = isFirstCol ? 'class="px-3 py-1.5 border-r last:border-r-0 border-border/60 text-foreground font-medium mono text-[12px]"' : 'class="px-3 py-1.5 border-r last:border-r-0 border-border/60 text-muted-foreground"';
+          bodyHtml += `<td ${style}>${cell}</td>`;
+        });
+        bodyHtml += "</tr>";
+      });
+      
+      if(rows.length === 0) {
+        bodyHtml = `<tr><td colSpan="${headers.length + 1}" class="px-4 py-10 text-center text-muted-foreground text-xs">無資料</td></tr>`;
+      }
+      tbody.innerHTML = bodyHtml;
+
+      document.getElementById("table-footer-cols").innerText = `已選 ${selectedCols.size} / ${rawHeaders.length} 欄`;
+      document.getElementById("table-footer-rows").innerText = `${rows.length} 列`;
+    }
+
+    function renderChart(sortedIndices) {
+      const axisCols = sortedIndices.filter(i => i !== 0);
+      const chartEmpty = document.getElementById("chart-empty");
+      const canvas = document.getElementById("mixChart");
+      
+      if (axisCols.length === 0) {
+        chartEmpty.classList.remove("hidden");
+        canvas.style.display = 'none';
+        if(myChart) { myChart.destroy(); myChart = null; }
+        return;
+      }
+      
+      chartEmpty.classList.add("hidden");
+      canvas.style.display = 'block';
+
+      const labels = axisCols.map(i => rawHeaders[i]);
+      const visibleRows = rawRows.filter((r, i) => selectedSerials.has(r[0] || `列${i + 1}`));
+      
+      const datasets = visibleRows.map((row, idx) => {
+        const serial = row[0] || `列${rawRows.indexOf(row) + 1}`;
+        const data = axisCols.map(colIdx => {
+          const val = parseFloat(row[colIdx]);
+          return isNaN(val) ? null : val;
+        });
+        
+        const color = LINE_COLORS[rawRows.indexOf(row) % LINE_COLORS.length];
+        return {
+          label: serial,
+          data: data,
+          borderColor: color,
+          backgroundColor: color,
+          borderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          tension: 0.1,
+          spanGaps: true
+        };
+      });
+
+      if (myChart) myChart.destroy();
+
+      const ctx = canvas.getContext('2d');
+      myChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                boxWidth: 12,
+                font: { size: 11, family: 'ui-monospace, monospace' },
+                color: '#636c76',
+                callback: function(item) {
+                  return item.text.length > 20 ? item.text.slice(0, 20) + "…" : item.text;
+                }
+              }
+            },
+            tooltip: {
+              backgroundColor: '#ffffff',
+              titleColor: '#24292f',
+              bodyColor: '#57606a',
+              borderColor: '#e1e4e8',
+              borderWidth: 1,
+              padding: 10,
+              titleFont: { size: 12, weight: 'semibold' },
+              bodyFont: { size: 11 },
+              cornerRadius: 8,
+              boxWidth: 8,
+              boxHeight: 8,
+              multiKeyBackground: 'transparent',
+              callbacks: {
+                labelColor: function(context) {
+                  return {
+                    borderColor: context.dataset.borderColor,
+                    backgroundColor: context.dataset.backgroundColor
+                  };
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: {
+                font: { size: 11 },
+                color: '#636c76',
+                maxRotation: 35,
+                minRotation: 35
+              }
+            },
+            y: {
+              grid: { color: '#d0d7de', drawTicks: false },
+              border: { dash: [3, 3] },
+              ticks: { font: { size: 11 }, color: '#636c76' }
+            }
+          }
+        }
+      });
+    }
+
+    function handleExport() {
+      const { headers, rows } = getFilteredData();
+      const escape = (v) => v.includes(",") || v.includes('"') || v.includes("\n") ? `"${v.replace(/"/g, '""')}"` : v;
+      
+      const lines = [headers.map(escape).join(",")];
+      rows.forEach(row => lines.push(row.map(escape).join(",")));
+      
+      const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = currentFilename.replace(/\.[^.]+$/, "") + "_filtered.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
