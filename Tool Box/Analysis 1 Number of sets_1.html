@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis 1 Number of sets of Excel</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 650px;
+        }
+        h2 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+        p {
+            font-size: 14px;
+            color: #7f8c8d;
+            line-height: 1.5;
+        }
+        .input-group {
+            margin-top: 15px;
+        }
+        label {
+            font-weight: bold;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+        input[type="number"] {
+            width: 100%;
+            padding: 8px 12px;
+            margin-top: 5px;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        textarea {
+            width: 100%;
+            height: 180px;
+            padding: 12px;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            box-sizing: border-box;
+            resize: vertical;
+            font-family: monospace;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        textarea:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 5px rgba(52,152,219,0.3);
+        }
+        button {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #27ae60;
+        }
+        .result-box {
+            margin-top: 25px;
+            padding: 20px;
+            background-color: #e8f8f5;
+            border-left: 5px solid #2ecc71;
+            border-radius: 4px;
+            display: none;
+        }
+        .result-title {
+            font-weight: bold;
+            color: #16a085;
+            margin-bottom: 5px;
+        }
+        .result-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        .list-container {
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid #bdc3c7;
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        .list-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 6px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+        }
+        .list-item:last-child {
+            border-bottom: none;
+        }
+        .list-item input {
+            margin-right: 12px;
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+        .sum-box {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 2px dashed #2ecc71;
+            font-size: 18px;
+            font-weight: bold;
+            color: #27ae60;
+            display: flex;
+            justify-content: space-between;
+        }
+        .actions-bar {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        .btn-small {
+            background-color: #3498db;
+            font-size: 12px;
+            padding: 5px 10px;
+            width: auto;
+            margin-top: 0;
+        }
+        .btn-small:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>1 Number of sets 分析器</h2>
+    <p><strong>使用說明：</strong><br>請從 Excel 複製一整欄（包含標題），貼入下方輸入框中，並設定需連續出現「1」的最小次數。</p>
+    
+    <div class="input-group">
+        <label for="minStreak">設定「1」最少需連續出現幾次：</label>
+        <input type="number" id="minStreak" value="1" min="1">
+    </div>
+
+    <div class="input-group">
+        <label for="excelData">Excel 資料貼上處：</label>
+        <textarea id="excelData" placeholder="請在此處貼上從 Excel 複製的欄位資料..."></textarea>
+    </div>
+    
+    <button onclick="calculateResult()">開始分析計算</button>
+    
+    <div id="resultContainer" class="result-box">
+        <div class="result-title">統計結果：</div>
+        <div class="result-value">符合條件的集合總數：<span id="resultValue">0</span> 個</div>
+
+        <div class="actions-bar">
+            <button class="btn-small" onclick="toggleSelectAll(true)">全選</button>
+            <button class="btn-small" onclick="toggleSelectAll(false)">全不選</button>
+        </div>
+
+        <div class="list-container" id="setList">
+            <!-- 列表項目將動態生成 -->
+        </div>
+
+        <div class="sum-box">
+            <span>已選擇項目的總組數：</span>
+            <div><span id="selectedSum">0</span> 組</div>
+        </div>
+    </div>
+</div>
+
+<script>
+function calculateResult() {
+    const rawData = document.getElementById('excelData').value;
+    const minStreak = parseInt(document.getElementById('minStreak').value, 10) || 1;
+    
+    // 切分資料列
+    let rows = rawData.split(/\r?\n/);
+    rows = rows.filter(row => row.trim() !== "");
+    
+    // 移除標題列
+    if (rows.length > 0) {
+        rows.shift();
+    }
+    
+    const setListContainer = document.getElementById('setList');
+    setListContainer.innerHTML = '';
+    
+    if (rows.length === 0) {
+        showResult(0, {});
+        return;
+    }
+    
+    let streakMap = {}; 
+    let currentStreak = 0;
+    let totalCount = 0;
+    
+    for (let i = 0; i < rows.length; i++) {
+        const currentVal = rows[i].trim();
+        
+        if (currentVal === "1") {
+            currentStreak++;
+        } else {
+            if (currentStreak >= minStreak) {
+                streakMap[currentStreak] = (streakMap[currentStreak] || 0) + 1;
+                totalCount++;
+            }
+            currentStreak = 0;
+        }
+    }
+    
+    if (currentStreak >= minStreak) {
+        streakMap[currentStreak] = (streakMap[currentStreak] || 0) + 1;
+        totalCount++;
+    }
+    
+    showResult(totalCount, streakMap);
+}
+
+function showResult(totalCount, streakMap) {
+    document.getElementById('resultValue').innerText = totalCount;
+    const listContainer = document.getElementById('setList');
+    listContainer.innerHTML = '';
+
+    const lengths = Object.keys(streakMap).map(Number).sort((a, b) => a - b);
+
+    if (lengths.length === 0) {
+        listContainer.innerHTML = '<div style="color: #95a5a6; font-size: 13px;">沒有符合條件的集合。</div>';
+    } else {
+        lengths.forEach(length => {
+            const count = streakMap[length];
+
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'list-item';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            // 將此類別的「組數」存放在 data-val 中
+            checkbox.setAttribute('data-val', count);
+            checkbox.className = 'set-checkbox';
+            checkbox.id = 'streak_' + length;
+            checkbox.checked = true;
+            checkbox.addEventListener('change', updateSum);
+
+            const label = document.createElement('label');
+            label.htmlFor = 'streak_' + length;
+            label.style.cursor = 'pointer';
+            label.innerHTML = `<strong>${length} 個連續的 1</strong>：共 ${count} 組`;
+
+            itemDiv.appendChild(checkbox);
+            itemDiv.appendChild(label);
+            listContainer.appendChild(itemDiv);
+        });
+    }
+
+    document.getElementById('resultContainer').style.display = 'block';
+    updateSum();
+}
+
+function updateSum() {
+    const checkboxes = document.querySelectorAll('.set-checkbox');
+    let totalGroups = 0;
+    checkboxes.forEach(cb => {
+        if (cb.checked) {
+            totalGroups += parseInt(cb.getAttribute('data-val'), 10);
+        }
+    });
+    document.getElementById('selectedSum').innerText = totalGroups;
+}
+
+function toggleSelectAll(selectAll) {
+    const checkboxes = document.querySelectorAll('.set-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = selectAll;
+    });
+    updateSum();
+}
+</script>
+
+</body>
+</html>
