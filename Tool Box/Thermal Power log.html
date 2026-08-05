@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Power_log 分析圖 (記錄初始時間)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 sm:p-8 flex flex-col items-center">
+
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-5xl">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6 text-center" id="pageTitle">📊 Power_log 分析圖</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <!-- 左側控制面板 -->
+            <div class="md:col-span-1 flex flex-col gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <!-- 圖表設定 -->
+                <div>
+                    <label for="var1NameInput" class="block font-medium text-blue-700 mb-1 text-sm">1. 圖表變數名稱：</label>
+                    <input type="text" id="var1NameInput" value="Kauai" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm mb-3">
+                    
+                    <!-- Kauai_Run1,2,3 與各自的初始時間對應排列 -->
+                    <div class="flex flex-col gap-2 mb-3">
+                        <div class="text-xs font-medium text-gray-600 mb-0.5">測試名稱與初始時間：</div>
+                        
+                        <!-- Kauai_Run1 + 初始時間1 -->
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="kauaiRun1" value="測試 1" class="w-1/2 border rounded px-2 py-1 text-xs text-left font-medium border-gray-300" placeholder="測試 1 名稱">
+                            <input type="text" id="startTime1" placeholder="初始時間 (如 10:00:00)" class="w-1/2 border border-gray-300 rounded px-2 py-1 text-xs text-center bg-white">
+                        </div>
+
+                        <!-- Kauai_Run2 + 初始時間2 -->
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="kauaiRun2" value="測試 2" class="w-1/2 border rounded px-2 py-1 text-xs text-left font-medium border-gray-300" placeholder="測試 2 名稱">
+                            <input type="text" id="startTime2" placeholder="初始時間 (如 14:00:00)" class="w-1/2 border border-gray-300 rounded px-2 py-1 text-xs text-center bg-white">
+                        </div>
+
+                        <!-- Kauai_Run3 + 初始時間3 -->
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="kauaiRun3" value="測試 3" class="w-1/2 border rounded px-2 py-1 text-xs text-left font-medium border-gray-300" placeholder="測試 3 名稱">
+                            <input type="text" id="startTime3" placeholder="初始時間 (如 09:00:00)" class="w-1/2 border border-gray-300 rounded px-2 py-1 text-xs text-center bg-white">
+                        </div>
+                    </div>
+
+                    <!-- 圖表標題與軸名稱設定 -->
+                    <div class="space-y-2 border-t border-gray-200 pt-3">
+                        <div>
+                            <label for="chartTitleInput" class="block font-medium text-gray-700 mb-0.5 text-xs">圖表標題 (Title)：</label>
+                            <input type="text" id="chartTitleInput" value="Kauai Power (vW)" class="w-full border border-gray-300 rounded-lg px-2.5 py-1 text-xs">
+                        </div>
+                        <div>
+                            <label for="xAxisTitleInput" class="block font-medium text-gray-700 mb-0.5 text-xs">X 軸標題：</label>
+                            <input type="text" id="xAxisTitleInput" value="Time" class="w-full border border-gray-300 rounded-lg px-2.5 py-1 text-xs">
+                        </div>
+                        <div>
+                            <label for="yAxisTitleInput" class="block font-medium text-gray-700 mb-0.5 text-xs">Y 軸標題：</label>
+                            <input type="text" id="yAxisTitleInput" value="Kauai Power Value (vW)" class="w-full border border-gray-300 rounded-lg px-2.5 py-1 text-xs">
+                        </div>
+                        <!-- Y 軸範圍設定 (最大/最小值) -->
+                        <div class="grid grid-cols-2 gap-2 pt-1">
+                            <div>
+                                <label for="yMinInput" class="block font-medium text-gray-700 mb-0.5 text-xs">Y 軸最小值：</label>
+                                <input type="number" step="any" id="yMinInput" placeholder="自動" class="w-full border border-gray-300 rounded-lg px-2.5 py-1 text-xs">
+                            </div>
+                            <div>
+                                <label for="yMaxInput" class="block font-medium text-gray-700 mb-0.5 text-xs">Y 軸最大值：</label>
+                                <input type="number" step="any" id="yMaxInput" placeholder="自動" class="w-full border border-gray-300 rounded-lg px-2.5 py-1 text-xs">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex-1 flex flex-col border-t border-gray-200 pt-3">
+                    <label for="excelData" class="block font-medium text-gray-700 mb-1 text-sm">
+                        2. 貼上 Excel 數據：
+                        <span class="text-xs text-gray-400 block">(可貼 4 欄或 6 欄數據)</span>
+                    </label>
+                    <textarea id="excelData" rows="6" 
+                              class="w-full flex-1 border border-gray-300 rounded-lg p-2.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                              placeholder="貼入 Excel 數據..."></textarea>
+                </div>
+
+                <button onclick="processAndDraw()" 
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition duration-200 shadow-md text-sm">
+                    解析數據並繪製圖表
+                </button>
+            </div>
+
+            <!-- 右側圖表區 -->
+            <div class="md:col-span-2 flex flex-col justify-center">
+                <div class="border border-gray-200 rounded-xl p-4 bg-white relative h-[520px] flex flex-col">
+                    <div class="flex-1 relative min-h-0">
+                        <canvas id="chart1"></canvas>
+                    </div>
+                    <!-- 分行顯示圖例的專屬區域 -->
+                    <div id="customLegend" class="flex flex-col gap-1 mt-3 pt-2 border-t border-gray-100 text-xs font-medium text-gray-700 items-start pl-4"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 預設數據範例
+        const defaultExcelText = "Time1\tKauai_Run1\tTime2\tKauai_Run2\tTime3\tKauai_Run3\n10:00:00\t10.2\t14:00:00\t10.4\t09:00:00\t9.8\n10:00:05\t10.5\t14:00:05\t10.7\t09:00:05\t10.1\n10:00:10\t11.1\t14:00:10\t11.0\t09:00:10\t10.5\n10:00:15\t11.8\t14:00:15\t12.0\t09:00:15\t11.2\n10:00:20\t12.5\t14:00:20\t12.3\t09:00:20\t12.0\n10:00:25\t12.9\t14:00:25\t12.8\t09:00:25\t12.9";
+        document.getElementById('excelData').value = defaultExcelText;
+
+        let chart1Instance = null;
+
+        function updateCustomLegend(chart) {
+            const legendContainer = document.getElementById('customLegend');
+            legendContainer.innerHTML = '';
+
+            chart.data.datasets.forEach((dataset, index) => {
+                const isHidden = !chart.isDatasetVisible(index);
+
+                const item = document.createElement('div');
+                item.className = `flex items-center gap-2 cursor-pointer transition-opacity duration-200 ${isHidden ? 'opacity-40 line-through' : 'opacity-100'}`;
+                item.onclick = () => {
+                    chart.setDatasetVisibility(index, !chart.isDatasetVisible(index));
+                    chart.update();
+                    updateCustomLegend(chart);
+                };
+
+                const colorBox = document.createElement('span');
+                colorBox.className = 'w-4 h-2.5 rounded-sm inline-block flex-shrink-0';
+                colorBox.style.backgroundColor = dataset.borderColor;
+
+                const text = document.createElement('span');
+                text.innerText = dataset.label;
+
+                item.appendChild(colorBox);
+                item.appendChild(text);
+                legendContainer.appendChild(item);
+            });
+        }
+
+        function processAndDraw() {
+            const rawText = document.getElementById('excelData').value.trim();
+            const var1Name = document.getElementById('var1NameInput').value.trim() || 'Kauai';
+
+            const chartTitle = document.getElementById('chartTitleInput').value.trim() || 'Kauai Power (vW)';
+            const xAxisTitle = document.getElementById('xAxisTitleInput').value.trim() || 'Time';
+            const yAxisTitle = document.getElementById('yAxisTitleInput').value.trim() || 'Kauai Power Value (vW)';
+
+            // 取得手動設定的 Y 軸最值
+            const yMinVal = document.getElementById('yMinInput').value;
+            const yMaxVal = document.getElementById('yMaxInput').value;
+
+            if (!rawText) return alert('請貼入 Excel 數據！');
+
+            const dataset1 = [];
+            const dataset2 = [];
+            const dataset3 = [];
+
+            const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            if (lines.length < 2) return alert('數據列數不足！');
+
+            // 1. 解析第一列 (Header) 第 2, 4, 6 欄
+            const headerCols = lines[0].split(/[\t,]+/);
+            if (headerCols.length >= 2 && headerCols[1].trim()) document.getElementById('kauaiRun1').value = headerCols[1].trim();
+            if (headerCols.length >= 4 && headerCols[3].trim()) document.getElementById('kauaiRun2').value = headerCols[3].trim();
+            if (headerCols.length >= 6 && headerCols[5].trim()) document.getElementById('kauaiRun3').value = headerCols[5].trim();
+
+            // 2. 解析第二列 (第一筆數據列) 第 1, 3, 5 欄作為初始時間
+            const firstDataCols = lines[1].split(/[\t,]+/);
+            if (firstDataCols.length >= 1 && firstDataCols[0].trim()) {
+                document.getElementById('startTime1').value = firstDataCols[0].trim();
+            }
+            if (firstDataCols.length >= 3 && firstDataCols[2].trim()) {
+                document.getElementById('startTime2').value = firstDataCols[2].trim();
+            }
+            if (firstDataCols.length >= 5 && firstDataCols[4].trim()) {
+                document.getElementById('startTime3').value = firstDataCols[4].trim();
+            }
+
+            // 3. 解析後續數據點
+            lines.slice(1).forEach(line => {
+                const columns = line.split(/[\t,]+/); 
+                
+                if (columns.length >= 6) {
+                    const v1 = parseFloat(columns[1]);
+                    const v2 = parseFloat(columns[3]);
+                    const v3 = parseFloat(columns[5]);
+
+                    if (!isNaN(v1)) dataset1.push({ x: dataset1.length + 1, y: v1 });
+                    if (!isNaN(v2)) dataset2.push({ x: dataset2.length + 1, y: v2 });
+                    if (!isNaN(v3)) dataset3.push({ x: dataset3.length + 1, y: v3 });
+                } else if (columns.length >= 4) {
+                    const v1 = parseFloat(columns[1]);
+                    const v2 = parseFloat(columns[2]);
+                    const v3 = parseFloat(columns[3]);
+
+                    if (!isNaN(v1)) dataset1.push({ x: dataset1.length + 1, y: v1 });
+                    if (!isNaN(v2)) dataset2.push({ x: dataset2.length + 1, y: v2 });
+                    if (!isNaN(v3)) dataset3.push({ x: dataset3.length + 1, y: v3 });
+                }
+            });
+
+            // 4. 讀取最新輸入框數值並組合成完整的標籤名稱
+            const t1 = document.getElementById('startTime1').value.trim();
+            const t2 = document.getElementById('startTime2').value.trim();
+            const t3 = document.getElementById('startTime3').value.trim();
+
+            const st1 = t1 ? ` (${t1})` : '';
+            const st2 = t2 ? ` (${t2})` : '';
+            const st3 = t3 ? ` (${t3})` : '';
+
+            const kauai_names = [
+                (document.getElementById('kauaiRun1').value.trim() || '測試 1') + st1,
+                (document.getElementById('kauaiRun2').value.trim() || '測試 2') + st2,
+                (document.getElementById('kauaiRun3').value.trim() || '測試 3') + st3
+            ];
+
+            if (dataset1.length === 0 && dataset2.length === 0 && dataset3.length === 0) {
+                return alert('無法解析數據，請確認 Excel 數據是否包含有效數字。');
+            }
+
+            if (chart1Instance) chart1Instance.destroy();
+
+            const yScaleConfig = {
+                title: { display: true, text: yAxisTitle }
+            };
+            if (yMinVal !== '') yScaleConfig.min = parseFloat(yMinVal);
+            if (yMaxVal !== '') yScaleConfig.max = parseFloat(yMaxVal);
+
+            const ctx1 = document.getElementById('chart1').getContext('2d');
+            chart1Instance = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        { label: kauai_names[0], data: dataset1, borderColor: 'rgb(59, 130, 246)', borderWidth: 2, pointRadius: 3 },
+                        { label: kauai_names[1], data: dataset2, borderColor: 'rgb(249, 115, 22)', borderWidth: 2, pointRadius: 3 },
+                        { label: kauai_names[2], data: dataset3, borderColor: 'rgb(34, 197, 94)', borderWidth: 2, pointRadius: 3 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: true, text: chartTitle, font: { size: 16 } },
+                        legend: { 
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            type: 'linear',
+                            title: { display: true, text: xAxisTitle },
+                            ticks: { stepSize: 1 }
+                        },
+                        y: yScaleConfig
+                    }
+                }
+            });
+
+            // 建立自訂圖例
+            updateCustomLegend(chart1Instance);
+        }
+
+        window.onload = processAndDraw;
+    </script>
+</body>
+</html>

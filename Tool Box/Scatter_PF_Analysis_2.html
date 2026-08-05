@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scatter Analysis - Pass / Fail</title>
+  
+  <!-- 載入必要解析庫：PapaParse (CSV) 與 ExcelJS + FileSaver -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #ffffff;
+      color: #1f2937;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .header {
+      border-bottom: 1px solid #e5e7eb;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f9fafb;
+    }
+    .sub-title {
+      font-family: monospace;
+      font-size: 11px;
+      color: #6b7280;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .main-title { font-size: 18px; font-weight: 600; color: #111827; margin-top: 2px; }
+    .stat-container { display: flex; gap: 12px; }
+    .stat-chip {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 4px 12px;
+      text-align: center;
+    }
+    .stat-label { font-size: 10px; color: #6b7280; font-weight: 500; }
+    .stat-value { font-size: 16px; font-weight: 700; line-height: 1.2; }
+    
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      min-height: calc(100vh - 65px);
+    }
+    .sidebar {
+      border-right: 1px solid #e5e7eb;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      background: #ffffff;
+    }
+    .section-title {
+      font-size: 11px;
+      color: #6b7280;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .drop-zone {
+      border: 2px dashed #d1d5db;
+      border-radius: 6px;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      background: #fafafa;
+      transition: all 0.15s;
+    }
+    .drop-zone.dragover { border-color: #16a34a; background: #f0fdf4; }
+    .btn {
+      width: 100%;
+      padding: 8px 0;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-success { background: #16a34a; color: #ffffff; }
+    .input-field {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .chart-area {
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      background: #ffffff;
+    }
+    .canvas-container {
+      flex: 1;
+      min-height: 400px;
+      position: relative;
+      background-color: #ffffff;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background-color: #ffffff;
+    }
+    .table-container {
+      margin-top: 20px;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 16px;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: monospace; }
+    th, td { padding: 6px; text-align: left; }
+    tr { border-bottom: 1px solid #f3f4f6; }
+    .error-msg {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #dc2626;
+      background: #fef2f2;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid #fecaca;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="sub-title">Scatter Analysis</div>
+      <div class="main-title" id="displayTitle">Scatter Plot — Pass / Fail</div>
+    </div>
+    <div class="stat-container">
+      <div class="stat-chip"><div class="stat-label">TOTAL</div><div class="stat-value" id="totalCount" style="color: #4b5563">0</div></div>
+      <div class="stat-chip"><div class="stat-label">PASS</div><div class="stat-value" id="passCount" style="color: #16a34a">0</div></div>
+      <div class="stat-chip"><div class="stat-label">FAIL</div><div class="stat-value" id="failCount" style="color: #dc2626">0</div></div>
+    </div>
+  </div>
+
+  <!-- Main Layout -->
+  <div class="layout">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div>
+        <div class="section-title">數據輸入</div>
+        <div class="drop-zone" id="dropZone">
+          <div style="font-size: 20px">📁</div>
+          <div style="font-size: 12px; color: #4b5563; font-weight: 500">拖曳檔案或點擊上傳</div>
+          <div style="font-size: 10px; color: #9ca3af">支援 .csv, .xlsx, .xls</div>
+        </div>
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.txt" style="display: none" />
+
+        <div style="margin-top: 12px">
+          <label style="font-size: 11px; color: #6b7280; display: block; margin-bottom: 4px">直接貼上數據：</label>
+          <textarea id="pasteInput" rows="4" class="input-field" style="font-family: monospace; resize: vertical" placeholder="X&#9;Y&#9;Z&#9;P/F&#10;-0.89&#9;-2.02&#9;10.6&#9;PASS"></textarea>
+        </div>
+        <div class="error-msg" id="errorMsg"></div>
+      </div>
+
+      <!-- Display Settings -->
+      <div>
+        <div class="section-title">Z 軸與顯示設定</div>
+        
+        <label style="font-size: 10px; color: #6b7280">Z 軸呈現方式</label>
+        <select id="zMode" class="input-field">
+          <option value="size">對應至氣泡大小 (Bubble Size)</option>
+          <option value="fixed">固定大小 (Ignore Z Size)</option>
+        </select>
+
+        <label style="font-size: 10px; color: #6b7280; display: flex; align-items: center; gap: 6px; cursor: pointer; margin-bottom: 8px;">
+          <input type="checkbox" id="chkShowZLabel" checked /> 顯示 Z 軸數值標籤
+        </label>
+
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #4b5563">
+          <span>基準圖示大小:</span>
+          <span id="dotSizeVal" style="font-weight: 600">8px</span>
+        </div>
+        <input type="range" id="dotSizeInput" min="4" max="20" value="8" style="width: 100%; cursor: pointer; margin-top: 4px" />
+      </div>
+
+      <!-- Axis Range Settings -->
+      <div>
+        <div class="section-title">座標軸範圍 (0 為核心)</div>
+        <label style="font-size: 10px; color: #6b7280">模式設定</label>
+        <select id="axisMode" class="input-field">
+          <option value="auto">對稱自動範圍 (Centered Auto)</option>
+          <option value="manual">手動輸入極值 (Manual Range)</option>
+        </select>
+
+        <div id="manualControls" style="display: none;">
+          <label style="font-size: 10px; color: #6b7280">X 軸單邊邊界 (± Max)</label>
+          <input type="number" id="xMaxBound" class="input-field" placeholder="例如：5" step="any">
+          <label style="font-size: 10px; color: #6b7280">Y 軸單邊邊界 (± Max)</label>
+          <input type="number" id="yMaxBound" class="input-field" placeholder="例如：5" step="any">
+        </div>
+      </div>
+
+      <!-- Chart Labels -->
+      <div>
+        <div class="section-title">圖表標籤設定</div>
+        <label style="font-size: 10px; color: #6b7280">圖表標題</label>
+        <input class="input-field" id="inputTitle" value="Scatter Plot — Pass / Fail" />
+        <label style="font-size: 10px; color: #6b7280">X軸名稱</label>
+        <input class="input-field" id="inputXLabel" value="X" />
+        <label style="font-size: 10px; color: #6b7280">Y軸名稱</label>
+        <input class="input-field" id="inputYLabel" value="Y" />
+      </div>
+
+      <!-- Legend -->
+      <div>
+        <div class="section-title">圖例說明</div>
+        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px">
+          <div><span style="color: #16a34a; font-weight: bold">● PASS</span> (圓形)</div>
+          <div><span style="color: #dc2626; font-weight: bold">✖ FAIL</span> (叉號)</div>
+          <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">⚪ 圓圈大小：代表 Z 軸數值高低</div>
+        </div>
+      </div>
+
+      <!-- Export Button -->
+      <div style="margin-top: auto">
+        <button class="btn btn-success" id="btnExport">匯出 Excel 報表</button>
+      </div>
+    </div>
+
+    <!-- Chart Area -->
+    <div class="chart-area">
+      <div class="canvas-container">
+        <canvas id="chartCanvas"></canvas>
+      </div>
+
+      <!-- Table Preview -->
+      <div class="table-container">
+        <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 8px" id="tableTitle">數據預覽</div>
+        <table>
+          <thead>
+            <tr style="color: #6b7280">
+              <th>#</th><th>X</th><th>Y</th><th>Z</th><th>P/F</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentData = [
+      { X: -0.89, Y: -2.02, Z: 10.6, PF: 'PASS' },
+      { X: -1.01, Y: -3.05, Z: 5.4, PF: 'PASS' },
+      { X: -0.5, Y: -3.19, Z: 15.4, PF: 'PASS' },
+      { X: 4.49, Y: -2.02, Z: 8.2, PF: 'PASS' },
+      { X: 3.94, Y: -0.2, Z: 18.88, PF: 'FAIL' },
+    ];
+
+    let baseDotSize = 8;
+    let title = "Scatter Plot — Pass / Fail";
+    let xLabel = "X";
+    let yLabel = "Y";
+    let hoverIndex = -1; // 紀錄目前滑鼠游標懸浮的資料點索引
+
+    const canvas = document.getElementById('chartCanvas');
+    const ctx = canvas.getContext('2d');
+    const errorMsg = document.getElementById('errorMsg');
+    const pasteInput = document.getElementById('pasteInput');
+
+    function showError(msg) {
+      errorMsg.style.display = 'block';
+      errorMsg.innerText = msg;
+    }
+
+    function clearError() {
+      errorMsg.style.display = 'none';
+      errorMsg.innerText = '';
+    }
+
+    document.getElementById('zMode').addEventListener('change', drawChart);
+    document.getElementById('chkShowZLabel').addEventListener('change', drawChart);
+
+    document.getElementById('axisMode').addEventListener('change', (e) => {
+      document.getElementById('manualControls').style.display = e.target.value === 'manual' ? 'block' : 'none';
+      drawChart();
+    });
+
+    ['xMaxBound', 'yMaxBound'].forEach(id => {
+      document.getElementById(id).addEventListener('input', drawChart);
+    });
+
+    window.addEventListener('resize', drawChart);
+    document.getElementById('dotSizeInput').addEventListener('input', (e) => {
+      baseDotSize = parseInt(e.target.value);
+      document.getElementById('dotSizeVal').innerText = baseDotSize + 'px';
+      drawChart();
+    });
+
+    ['inputTitle', 'inputXLabel', 'inputYLabel'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => {
+        title = document.getElementById('inputTitle').value;
+        xLabel = document.getElementById('inputXLabel').value;
+        yLabel = document.getElementById('inputYLabel').value;
+        document.getElementById('displayTitle').innerText = title;
+        drawChart();
+      });
+    });
+
+    function parseRows(raw) {
+      return raw.map((r) => {
+        const keys = Object.keys(r);
+        const get = (name) => {
+          const foundKey = keys.find((k) => k.trim().toUpperCase() === name);
+          return foundKey ? String(r[foundKey]) : '';
+        };
+
+        const x = parseFloat(get('X'));
+        const y = parseFloat(get('Y'));
+        const z = parseFloat(get('Z'));
+        const pf = (get('P/F') || get('PF') || '').trim().toUpperCase();
+
+        if (isNaN(x) || isNaN(y)) return null;
+        return { X: x, Y: y, Z: isNaN(z) ? 0 : z, PF: pf || 'UNKNOWN' };
+      }).filter(Boolean);
+    }
+
+    function autoParseText(text) {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      if (typeof Papa !== 'undefined') {
+        const parsed = Papa.parse(trimmed, { header: true, skipEmptyLines: true });
+        const rows = parseRows(parsed.data);
+        if (rows.length) { 
+          clearError();
+          currentData = rows; 
+          updateAll(); 
+        } else {
+          showError('貼上格式解析失敗，請確認欄位標頭包含 X 與 Y');
+        }
+      }
+    }
+
+    pasteInput.addEventListener('paste', () => setTimeout(() => autoParseText(pasteInput.value), 50));
+    pasteInput.addEventListener('input', () => autoParseText(pasteInput.value));
+
+    // 檔案拖曳與上傳功能
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files[0]) handleFile(e.target.files[0]);
+      fileInput.value = '';
+    });
+
+    async function handleFile(file) {
+      clearError();
+      const filename = file.name.toLowerCase();
+
+      if (filename.endsWith('.csv') || filename.endsWith('.txt')) {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            const rows = parseRows(results.data);
+            if (rows.length) {
+              currentData = rows;
+              updateAll();
+            } else {
+              showError('CSV/TXT 檔案讀取失敗，請檢查欄位名是否包含 X, Y');
+            }
+          }
+        });
+      } 
+      else if (filename.endsWith('.xlsx') || filename.endsWith('.xls')) {
+        try {
+          const buffer = await file.arrayBuffer();
+          const workbook = new ExcelJS.Workbook();
+          await workbook.xlsx.load(buffer);
+          
+          const worksheet = workbook.worksheets[0];
+          if (!worksheet) {
+            showError('Excel 工作表為空');
+            return;
+          }
+
+          const rawData = [];
+          let headers = [];
+
+          worksheet.eachRow((row, rowNumber) => {
+            const rowValues = row.values.slice(1);
+            if (rowNumber === 1) {
+              headers = rowValues.map(v => String(v || '').trim());
+            } else {
+              const rowObj = {};
+              headers.forEach((h, idx) => {
+                rowObj[h] = rowValues[idx] !== undefined ? rowValues[idx] : '';
+              });
+              rawData.push(rowObj);
+            }
+          });
+
+          const rows = parseRows(rawData);
+          if (rows.length) {
+            currentData = rows;
+            updateAll();
+          } else {
+            showError('Excel 檔案內找不到有效的 X/Y 數據，請確認第一行為標頭');
+          }
+        } catch (err) {
+          console.error(err);
+          showError('Excel 檔案解析錯誤，請確認檔案格式是否受損');
+        }
+      } else {
+        showError('不支援的檔案格式，請上傳 .csv, .xlsx, .xls 或 .txt 檔');
+      }
+    }
+
+    // 滑鼠懸浮即時顯示數據點標籤
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const paddingLeft = 70, paddingRight = 30, paddingTop = 50, paddingBottom = 60;
+      const width = canvas.width - paddingLeft - paddingRight;
+      const height = canvas.height - paddingTop - paddingBottom;
+
+      if (!currentData.length) return;
+
+      let maxLimitX, maxLimitY;
+      const mode = document.getElementById('axisMode').value;
+      if (mode === 'manual') {
+        maxLimitX = Math.abs(parseFloat(document.getElementById('xMaxBound').value)) || 5;
+        maxLimitY = Math.abs(parseFloat(document.getElementById('yMaxBound').value)) || 5;
+      } else {
+        let maxAbsX = Math.max(...currentData.map(d => Math.abs(d.X)), 1);
+        let maxAbsY = Math.max(...currentData.map(d => Math.abs(d.Y)), 1);
+        maxLimitX = maxAbsX * 1.2;
+        maxLimitY = maxAbsY * 1.2;
+      }
+
+      const minX = -maxLimitX, maxX = maxLimitX;
+      const minY = -maxLimitY, maxY = maxLimitY;
+
+      const toScreenX = (x) => paddingLeft + ((x - minX) / (maxX - minX)) * width;
+      const toScreenY = (y) => paddingTop + height - ((y - minY) / (maxY - minY)) * height;
+
+      let foundIdx = -1;
+      const hitRadius = 12; // 碰撞偵測半徑
+
+      for (let i = 0; i < currentData.length; i++) {
+        const cx = toScreenX(currentData[i].X);
+        const cy = toScreenY(currentData[i].Y);
+        const dist = Math.hypot(mouseX - cx, mouseY - cy);
+        if (dist <= hitRadius) {
+          foundIdx = i;
+          break;
+        }
+      }
+
+      if (hoverIndex !== foundIdx) {
+        hoverIndex = foundIdx;
+        canvas.style.cursor = foundIdx !== -1 ? 'pointer' : 'default';
+        drawChart();
+      }
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      if (hoverIndex !== -1) {
+        hoverIndex = -1;
+        canvas.style.cursor = 'default';
+        drawChart();
+      }
+    });
+
+    // 匯出 Excel
+    document.getElementById('btnExport').addEventListener('click', async () => {
+      if (typeof ExcelJS === 'undefined') {
+        alert('ExcelJS 載入失敗，請確認網路連線');
+        return;
+      }
+
+      const workbook = new ExcelJS.Workbook();
+      const ws = workbook.addWorksheet('Scatter Analysis');
+
+      ws.getCell('A1').value = 'X';
+      ws.getCell('B1').value = 'Y';
+      ws.getCell('C1').value = 'Z';
+      ws.getCell('D1').value = 'P/F';
+      
+      ['A1', 'B1', 'C1', 'D1'].forEach(cell => {
+        ws.getCell(cell).font = { bold: true };
+      });
+
+      currentData.forEach((row, idx) => {
+        const r = idx + 2;
+        ws.getCell(`A${r}`).value = row.X;
+        ws.getCell(`B${r}`).value = row.Y;
+        ws.getCell(`C${r}`).value = row.Z;
+        
+        const cellPF = ws.getCell(`D${r}`);
+        cellPF.value = row.PF;
+
+        if (row.PF === 'PASS') {
+          cellPF.font = { color: { argb: 'FF16A34A' }, bold: true };
+        } else if (row.PF === 'FAIL') {
+          cellPF.font = { color: { argb: 'FFDC2626' }, bold: true };
+        }
+      });
+
+      const passCount = currentData.filter(d => d.PF === 'PASS').length;
+      const failCount = currentData.filter(d => d.PF === 'FAIL').length;
+      const passRate = currentData.length ? `${((passCount / currentData.length) * 100).toFixed(1)}%` : '0%';
+
+      const summaryData = [
+        ['圖表標題', title],
+        ['X軸名稱', xLabel],
+        ['Y軸名稱', yLabel],
+        ['總筆數', currentData.length],
+        ['PASS 筆數', passCount],
+        ['FAIL 筆數', failCount],
+        ['合格率', passRate]
+      ];
+
+      summaryData.forEach((item, idx) => {
+        const r = idx + 1;
+        ws.getCell(`F${r}`).value = item[0];
+        ws.getCell(`F${r}`).font = { bold: true };
+        
+        const cellVal = ws.getCell(`G${r}`);
+        cellVal.value = item[1];
+
+        if (item[0] === 'PASS 筆數') {
+          cellVal.font = { color: { argb: 'FF16A34A' }, bold: true };
+        } else if (item[0] === 'FAIL 筆數') {
+          cellVal.font = { color: { argb: 'FFDC2626' }, bold: true };
+        }
+      });
+
+      // 暫時去除滑鼠點選狀態再截圖
+      const tempHover = hoverIndex;
+      hoverIndex = -1;
+      drawChart();
+
+      const imageBase64 = canvas.toDataURL('image/png');
+      
+      // 復原滑鼠狀態
+      hoverIndex = tempHover;
+      drawChart();
+
+      const imageId = workbook.addImage({
+        base64: imageBase64,
+        extension: 'png',
+      });
+
+      ws.addImage(imageId, {
+        tl: { col: 5, row: 9 },
+        ext: { width: canvas.width * 0.75, height: canvas.height * 0.75 }
+      });
+
+      ws.getColumn(1).width = 12;
+      ws.getColumn(2).width = 12;
+      ws.getColumn(3).width = 12;
+      ws.getColumn(4).width = 12;
+      ws.getColumn(5).width = 4;
+      ws.getColumn(6).width = 15;
+      ws.getColumn(7).width = 25;
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      saveAs(new Blob([buffer]), 'Scatter_PF_Analysis.xlsx');
+    });
+
+    // 繪圖核心
+    function drawChart() {
+      const parent = canvas.parentElement;
+      canvas.width = parent.clientWidth;
+      canvas.height = parent.clientHeight;
+
+      const paddingLeft = 70;
+      const paddingBottom = 60;
+      const paddingTop = 50;
+      const paddingRight = 30;
+
+      const width = canvas.width - paddingLeft - paddingRight;
+      const height = canvas.height - paddingTop - paddingBottom;
+
+      // 0. 背景與外框
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#9ca3af';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+
+      // 1. 標題
+      if (title) {
+        ctx.fillStyle = '#111827';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(title, canvas.width / 2, 28);
+      }
+
+      if (!currentData.length) return;
+
+      // 計算 X, Y 極值
+      let maxLimitX, maxLimitY;
+      const mode = document.getElementById('axisMode').value;
+      if (mode === 'manual') {
+        maxLimitX = Math.abs(parseFloat(document.getElementById('xMaxBound').value)) || 5;
+        maxLimitY = Math.abs(parseFloat(document.getElementById('yMaxBound').value)) || 5;
+      } else {
+        let maxAbsX = Math.max(...currentData.map(d => Math.abs(d.X)), 1);
+        let maxAbsY = Math.max(...currentData.map(d => Math.abs(d.Y)), 1);
+        maxLimitX = maxAbsX * 1.2;
+        maxLimitY = maxAbsY * 1.2;
+        document.getElementById('xMaxBound').value = maxLimitX.toFixed(2);
+        document.getElementById('yMaxBound').value = maxLimitY.toFixed(2);
+      }
+
+      const zValues = currentData.map(d => d.Z);
+      const minZ = Math.min(...zValues);
+      const maxZ = Math.max(...zValues);
+
+      const minX = -maxLimitX, maxX = maxLimitX;
+      const minY = -maxLimitY, maxY = maxLimitY;
+
+      const toScreenX = (x) => paddingLeft + ((x - minX) / (maxX - minX)) * width;
+      const toScreenY = (y) => paddingTop + height - ((y - minY) / (maxY - minY)) * height;
+
+      // 2. 數據圖表邊框
+      ctx.strokeStyle = '#374151';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(paddingLeft, paddingTop, width, height);
+
+      // 3. 中心軸 (0,0)
+      const zeroX = toScreenX(0);
+      const zeroY = toScreenY(0);
+      ctx.strokeStyle = '#111827';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(paddingLeft, zeroY); ctx.lineTo(paddingLeft + width, zeroY); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(zeroX, paddingTop); ctx.lineTo(zeroX, paddingTop + height); ctx.stroke();
+
+      // 4. 刻度與網格
+      const ticksPerSide = 3;
+      ctx.fillStyle = '#111827';
+      ctx.font = '500 13px monospace';
+
+      for (let i = -ticksPerSide; i <= ticksPerSide; i++) {
+        const val = (i / ticksPerSide) * maxLimitX;
+        const xPos = toScreenX(val);
+        if (i !== 0) {
+          ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(xPos, paddingTop); ctx.lineTo(xPos, paddingTop + height); ctx.stroke();
+        }
+        ctx.strokeStyle = '#374151'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(xPos, paddingTop + height); ctx.lineTo(xPos, paddingTop + height + 5); ctx.stroke();
+        ctx.textAlign = 'center';
+        ctx.fillText(val.toFixed(2), xPos, paddingTop + height + 20);
+      }
+
+      for (let i = -ticksPerSide; i <= ticksPerSide; i++) {
+        const val = (i / ticksPerSide) * maxLimitY;
+        const yPos = toScreenY(val);
+        if (i !== 0) {
+          ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(paddingLeft, yPos); ctx.lineTo(paddingLeft + width, yPos); ctx.stroke();
+        }
+        ctx.strokeStyle = '#374151'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(paddingLeft - 5, yPos); ctx.lineTo(paddingLeft, yPos); ctx.stroke();
+        ctx.textAlign = 'right';
+        ctx.fillText(val.toFixed(2), paddingLeft - 10, yPos + 4);
+      }
+
+      // 5. 軸名稱
+      ctx.fillStyle = '#111827';
+      ctx.font = 'bold 15px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(xLabel, paddingLeft + width / 2, canvas.height - 12);
+
+      ctx.save();
+      ctx.translate(20, paddingTop + height / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText(yLabel, 0, 0);
+      ctx.restore();
+
+      // 6. 繪製 Scatter 點
+      const useZSize = document.getElementById('zMode').value === 'size';
+      const showZText = document.getElementById('chkShowZLabel').checked;
+
+      currentData.forEach((d, idx) => {
+        const cx = toScreenX(d.X);
+        const cy = toScreenY(d.Y);
+
+        if (cx < paddingLeft || cx > paddingLeft + width || cy < paddingTop || cy > paddingTop + height) return;
+
+        let r = baseDotSize;
+        if (useZSize && maxZ !== minZ) {
+          const ratio = (d.Z - minZ) / (maxZ - minZ);
+          r = baseDotSize * (0.6 + ratio * 1.5);
+        }
+
+        // 當前懸浮的高亮放大效果
+        if (idx === hoverIndex) r += 3;
+
+        if (d.PF === 'PASS') {
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          ctx.fillStyle = idx === hoverIndex ? 'rgba(34, 197, 94, 0.95)' : 'rgba(34, 197, 94, 0.7)';
+          ctx.fill();
+          ctx.strokeStyle = '#15803d';
+          ctx.lineWidth = idx === hoverIndex ? 3 : 2;
+          ctx.stroke();
+        } else {
+          ctx.strokeStyle = '#dc2626';
+          ctx.lineWidth = idx === hoverIndex ? 4 : 3;
+          ctx.beginPath();
+          ctx.moveTo(cx - r, cy - r); ctx.lineTo(cx + r, cy + r);
+          ctx.moveTo(cx + r, cy - r); ctx.lineTo(cx - r, cy + r);
+          ctx.stroke();
+        }
+
+        if (showZText && idx !== hoverIndex) {
+          ctx.fillStyle = '#374151';
+          ctx.font = 'bold 11px monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText(`${d.Z}`, cx + r + 4, cy + 4);
+        }
+      });
+
+      // 7. 懸浮數據提示框 (Tooltip)
+      if (hoverIndex !== -1 && hoverIndex < currentData.length) {
+        const target = currentData[hoverIndex];
+        const cx = toScreenX(target.X);
+        const cy = toScreenY(target.Y);
+
+        const lines = [
+          `X: ${target.X}`,
+          `Y: ${target.Y}`,
+          `Z: ${target.Z}`,
+          `P/F: ${target.PF}`
+        ];
+
+        ctx.font = '12px monospace';
+        const tooltipPadding = 8;
+        const lineHeight = 16;
+        let maxWidth = 0;
+
+        lines.forEach(line => {
+          const w = ctx.measureText(line).width;
+          if (w > maxWidth) maxWidth = w;
+        });
+
+        const boxWidth = maxWidth + tooltipPadding * 2;
+        const boxHeight = lines.length * lineHeight + tooltipPadding * 2;
+
+        // 計算最佳彈出位置（預設右上角，接近邊界時自動調整至左側或下方）
+        let boxX = cx + 12;
+        let boxY = cy - boxHeight - 8;
+
+        if (boxX + boxWidth > canvas.width - 10) boxX = cx - boxWidth - 12;
+        if (boxY < 10) boxY = cy + 12;
+
+        // 繪製半透明背景陰影與外框
+        ctx.fillStyle = 'rgba(17, 24, 39, 0.85)';
+        ctx.strokeStyle = target.PF === 'PASS' ? '#22c55e' : '#ef4444';
+        ctx.lineWidth = 1.5;
+
+        // 圓角矩形 Tooltip
+        const radius = 4;
+        ctx.beginPath();
+        ctx.moveTo(boxX + radius, boxY);
+        ctx.lineTo(boxX + boxWidth - radius, boxY);
+        ctx.quadraticCurveTo(boxX + boxWidth, boxY, boxX + boxWidth, boxY + radius);
+        ctx.lineTo(boxX + boxWidth, boxY + boxHeight - radius);
+        ctx.quadraticCurveTo(boxX + boxWidth, boxY + boxHeight, boxX + boxWidth - radius, boxY + boxHeight);
+        ctx.lineTo(boxX + radius, boxY + boxHeight);
+        ctx.quadraticCurveTo(boxX, boxY + boxHeight, boxX, boxY + boxHeight - radius);
+        ctx.lineTo(boxX, boxY + radius);
+        ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // 寫入數據文字
+        ctx.textAlign = 'left';
+        lines.forEach((line, i) => {
+          if (line.startsWith('P/F')) {
+            ctx.fillStyle = target.PF === 'PASS' ? '#4ade80' : '#f87171';
+            ctx.font = 'bold 12px monospace';
+          } else {
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '12px monospace';
+          }
+          ctx.fillText(line, boxX + tooltipPadding, boxY + tooltipPadding + (i + 1) * lineHeight - 3);
+        });
+      }
+    }
+
+    function updateUI() {
+      const passCount = currentData.filter(d => d.PF === 'PASS').length;
+      const failCount = currentData.filter(d => d.PF === 'FAIL').length;
+      document.getElementById('totalCount').innerText = currentData.length;
+      document.getElementById('passCount').innerText = passCount;
+      document.getElementById('failCount').innerText = failCount;
+
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+      currentData.forEach((row, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="color: #9ca3af">${i + 1}</td>
+          <td>${row.X}</td>
+          <td>${row.Y}</td>
+          <td>${row.Z}</td>
+          <td style="color: ${row.PF === 'PASS' ? '#16a34a' : '#dc2626'}; font-weight: 600">${row.PF}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updateAll() {
+      updateUI();
+      drawChart();
+    }
+
+    updateAll();
+  </script>
+</body>
+</html>
