@@ -2,7 +2,8 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- 防縮放與適應手機寬度 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Scatter Analysis - Pass / Fail</title>
   
   <!-- 載入必要解析庫：PapaParse (CSV) 與 ExcelJS + FileSaver -->
@@ -16,13 +17,18 @@
       background-color: #ffffff;
       color: #1f2937;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      touch-action: manipulation;
     }
+
+    /* Header 響應式 */
     .header {
       border-bottom: 1px solid #e5e7eb;
-      padding: 16px 32px;
+      padding: 12px 16px;
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
+      gap: 12px;
       background: #f9fafb;
     }
     .sub-title {
@@ -33,30 +39,51 @@
       text-transform: uppercase;
     }
     .main-title { font-size: 18px; font-weight: 600; color: #111827; margin-top: 2px; }
-    .stat-container { display: flex; gap: 12px; }
+    .stat-container { display: flex; gap: 8px; flex-wrap: wrap; }
     .stat-chip {
       background: #ffffff;
       border: 1px solid #e5e7eb;
       border-radius: 6px;
-      padding: 4px 12px;
+      padding: 4px 10px;
       text-align: center;
+      flex: 1;
+      min-width: 65px;
     }
     .stat-label { font-size: 10px; color: #6b7280; font-weight: 500; }
-    .stat-value { font-size: 16px; font-weight: 700; line-height: 1.2; }
+    .stat-value { font-size: 15px; font-weight: 700; line-height: 1.2; }
     
+    /* 佈局：桌機雙欄，手機單欄 */
     .layout {
-      display: grid;
-      grid-template-columns: 320px 1fr;
-      min-height: calc(100vh - 65px);
-    }
-    .sidebar {
-      border-right: 1px solid #e5e7eb;
-      padding: 24px 20px;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+    }
+
+    @media (min-width: 768px) {
+      .layout {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        min-height: calc(100vh - 65px);
+      }
+    }
+
+    .sidebar {
+      border-bottom: 1px solid #e5e7eb;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
       background: #ffffff;
     }
+
+    @media (min-width: 768px) {
+      .sidebar {
+        border-right: 1px solid #e5e7eb;
+        border-bottom: none;
+        padding: 24px 20px;
+        gap: 20px;
+      }
+    }
+
     .section-title {
       font-size: 11px;
       color: #6b7280;
@@ -77,49 +104,67 @@
     .drop-zone.dragover { border-color: #16a34a; background: #f0fdf4; }
     .btn {
       width: 100%;
-      padding: 8px 0;
-      border-radius: 4px;
+      padding: 12px 0;
+      border-radius: 6px;
       font-weight: 600;
-      font-size: 12px;
+      font-size: 14px;
       cursor: pointer;
       border: none;
+      touch-action: manipulation;
     }
     .btn-success { background: #16a34a; color: #ffffff; }
     .input-field {
       width: 100%;
       border: 1px solid #d1d5db;
       border-radius: 4px;
-      padding: 6px 8px;
-      font-size: 12px;
+      padding: 8px;
+      font-size: 14px;
       margin-bottom: 8px;
     }
+    
     .chart-area {
-      padding: 32px;
+      padding: 12px;
       display: flex;
       flex-direction: column;
+      align-items: center; /* 圖表居中置中 */
       background: #ffffff;
-    }
-    .canvas-container {
       flex: 1;
-      min-height: 400px;
+    }
+
+    @media (min-width: 768px) {
+      .chart-area { padding: 24px 32px; }
+    }
+
+    /* 正方形容器設定 */
+    .canvas-container {
+      width: 100%;
+      max-width: 580px; /* 電腦版最大限制為 580px 正方形 */
+      aspect-ratio: 1 / 1; /* 強制維持 1:1 正方形 */
       position: relative;
       background-color: #ffffff;
+      margin: 0 auto;
     }
+
     canvas {
       width: 100%;
       height: 100%;
       display: block;
       background-color: #ffffff;
+      touch-action: none;
     }
+
     .table-container {
+      width: 100%;
+      max-width: 580px; /* 與圖表寬度對齊 */
       margin-top: 20px;
       border-top: 1px solid #e5e7eb;
       padding-top: 16px;
-      max-height: 180px;
+      max-height: 220px;
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
     table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: monospace; }
-    th, td { padding: 6px; text-align: left; }
+    th, td { padding: 8px 6px; text-align: left; }
     tr { border-bottom: 1px solid #f3f4f6; }
     .error-msg {
       margin-top: 8px;
@@ -155,15 +200,15 @@
       <div>
         <div class="section-title">數據輸入</div>
         <div class="drop-zone" id="dropZone">
-          <div style="font-size: 20px">📁</div>
-          <div style="font-size: 12px; color: #4b5563; font-weight: 500">拖曳檔案或點擊上傳</div>
-          <div style="font-size: 10px; color: #9ca3af">支援 .csv, .xlsx, .xls</div>
+          <div style="font-size: 24px">📁</div>
+          <div style="font-size: 13px; color: #4b5563; font-weight: 500">拖曳檔案或點擊上傳</div>
+          <div style="font-size: 11px; color: #9ca3af">支援 .csv, .xlsx, .xls</div>
         </div>
         <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.txt" style="display: none" />
 
         <div style="margin-top: 12px">
           <label style="font-size: 11px; color: #6b7280; display: block; margin-bottom: 4px">直接貼上數據：</label>
-          <textarea id="pasteInput" rows="4" class="input-field" style="font-family: monospace; resize: vertical" placeholder="X&#9;Y&#9;Z&#9;P/F&#10;-0.89&#9;-2.02&#9;10.6&#9;PASS"></textarea>
+          <textarea id="pasteInput" rows="3" class="input-field" style="font-family: monospace; resize: vertical" placeholder="X&#9;Y&#9;Z&#9;P/F&#10;-0.89&#9;-2.02&#9;10.6&#9;PASS"></textarea>
         </div>
         <div class="error-msg" id="errorMsg"></div>
       </div>
@@ -172,36 +217,36 @@
       <div>
         <div class="section-title">Z 軸與顯示設定</div>
         
-        <label style="font-size: 10px; color: #6b7280">Z 軸呈現方式</label>
+        <label style="font-size: 11px; color: #6b7280">Z 軸呈現方式</label>
         <select id="zMode" class="input-field">
           <option value="size">對應至氣泡大小 (Bubble Size)</option>
           <option value="fixed">固定大小 (Ignore Z Size)</option>
         </select>
 
-        <label style="font-size: 10px; color: #6b7280; display: flex; align-items: center; gap: 6px; cursor: pointer; margin-bottom: 8px;">
-          <input type="checkbox" id="chkShowZLabel" checked /> 顯示 Z 軸數值標籤
+        <label style="font-size: 12px; color: #6b7280; display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 8px 0;">
+          <input type="checkbox" id="chkShowZLabel" checked style="width: 16px; height: 16px;" /> 顯示 Z 軸數值標籤
         </label>
 
-        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #4b5563">
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #4b5563; margin-top: 4px;">
           <span>基準圖示大小:</span>
           <span id="dotSizeVal" style="font-weight: 600">8px</span>
         </div>
-        <input type="range" id="dotSizeInput" min="4" max="20" value="8" style="width: 100%; cursor: pointer; margin-top: 4px" />
+        <input type="range" id="dotSizeInput" min="4" max="20" value="8" style="width: 100%; cursor: pointer; margin-top: 6px; height: 24px;" />
       </div>
 
       <!-- Axis Range Settings -->
       <div>
         <div class="section-title">座標軸範圍 (0 為核心)</div>
-        <label style="font-size: 10px; color: #6b7280">模式設定</label>
+        <label style="font-size: 11px; color: #6b7280">模式設定</label>
         <select id="axisMode" class="input-field">
           <option value="auto">對稱自動範圍 (Centered Auto)</option>
           <option value="manual">手動輸入極值 (Manual Range)</option>
         </select>
 
         <div id="manualControls" style="display: none;">
-          <label style="font-size: 10px; color: #6b7280">X 軸單邊邊界 (± Max)</label>
+          <label style="font-size: 11px; color: #6b7280">X 軸單邊邊界 (± Max)</label>
           <input type="number" id="xMaxBound" class="input-field" placeholder="例如：5" step="any">
-          <label style="font-size: 10px; color: #6b7280">Y 軸單邊邊界 (± Max)</label>
+          <label style="font-size: 11px; color: #6b7280">Y 軸單邊邊界 (± Max)</label>
           <input type="number" id="yMaxBound" class="input-field" placeholder="例如：5" step="any">
         </div>
       </div>
@@ -209,11 +254,11 @@
       <!-- Chart Labels -->
       <div>
         <div class="section-title">圖表標籤設定</div>
-        <label style="font-size: 10px; color: #6b7280">圖表標題</label>
+        <label style="font-size: 11px; color: #6b7280">圖表標題</label>
         <input class="input-field" id="inputTitle" value="Scatter Plot — Pass / Fail" />
-        <label style="font-size: 10px; color: #6b7280">X軸名稱</label>
+        <label style="font-size: 11px; color: #6b7280">X軸名稱</label>
         <input class="input-field" id="inputXLabel" value="X" />
-        <label style="font-size: 10px; color: #6b7280">Y軸名稱</label>
+        <label style="font-size: 11px; color: #6b7280">Y軸名稱</label>
         <input class="input-field" id="inputYLabel" value="Y" />
       </div>
 
@@ -228,7 +273,7 @@
       </div>
 
       <!-- Export Button -->
-      <div style="margin-top: auto">
+      <div style="margin-top: 8px">
         <button class="btn btn-success" id="btnExport">匯出 Excel 報表</button>
       </div>
     </div>
@@ -241,7 +286,7 @@
 
       <!-- Table Preview -->
       <div class="table-container">
-        <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 8px" id="tableTitle">數據預覽</div>
+        <div style="font-size: 12px; color: #6b7280; font-weight: 600; margin-bottom: 8px" id="tableTitle">數據預覽</div>
         <table>
           <thead>
             <tr style="color: #6b7280">
@@ -267,7 +312,7 @@
     let title = "Scatter Plot — Pass / Fail";
     let xLabel = "X";
     let yLabel = "Y";
-    let hoverIndex = -1; // 紀錄目前滑鼠游標懸浮的資料點索引
+    let hoverIndex = -1;
 
     const canvas = document.getElementById('chartCanvas');
     const ctx = canvas.getContext('2d');
@@ -430,15 +475,23 @@
       }
     }
 
-    // 滑鼠懸浮即時顯示數據點標籤
-    canvas.addEventListener('mousemove', (e) => {
+    // 處理滑鼠與觸控事件
+    function handlePointerMove(clientX, clientY) {
       const rect = canvas.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
+      const mouseX = clientX - rect.left;
+      const mouseY = clientY - rect.top;
 
-      const paddingLeft = 70, paddingRight = 30, paddingTop = 50, paddingBottom = 60;
-      const width = canvas.width - paddingLeft - paddingRight;
-      const height = canvas.height - paddingTop - paddingBottom;
+      const displayWidth = canvas.parentElement.clientWidth;
+      const isMobile = displayWidth < 500;
+
+      const paddingLeft = isMobile ? 55 : 70;
+      const paddingRight = isMobile ? 20 : 30;
+      const paddingTop = isMobile ? 40 : 50;
+      const paddingBottom = isMobile ? 50 : 60;
+
+      const dpr = window.devicePixelRatio || 1;
+      const width = (canvas.width / dpr) - paddingLeft - paddingRight;
+      const height = (canvas.height / dpr) - paddingTop - paddingBottom;
 
       if (!currentData.length) return;
 
@@ -461,7 +514,7 @@
       const toScreenY = (y) => paddingTop + height - ((y - minY) / (maxY - minY)) * height;
 
       let foundIdx = -1;
-      const hitRadius = 12; // 碰撞偵測半徑
+      const hitRadius = isMobile ? 20 : 12;
 
       for (let i = 0; i < currentData.length; i++) {
         const cx = toScreenX(currentData[i].X);
@@ -478,7 +531,17 @@
         canvas.style.cursor = foundIdx !== -1 ? 'pointer' : 'default';
         drawChart();
       }
-    });
+    }
+
+    canvas.addEventListener('mousemove', (e) => handlePointerMove(e.clientX, e.clientY));
+    
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 0) handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 0) handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
 
     canvas.addEventListener('mouseleave', () => {
       if (hoverIndex !== -1) {
@@ -552,14 +615,12 @@
         }
       });
 
-      // 暫時去除滑鼠點選狀態再截圖
       const tempHover = hoverIndex;
       hoverIndex = -1;
       drawChart();
 
       const imageBase64 = canvas.toDataURL('image/png');
       
-      // 復原滑鼠狀態
       hoverIndex = tempHover;
       drawChart();
 
@@ -568,9 +629,10 @@
         extension: 'png',
       });
 
+      // 保持正方形匯出到 Excel (450x450px)
       ws.addImage(imageId, {
         tl: { col: 5, row: 9 },
-        ext: { width: canvas.width * 0.75, height: canvas.height * 0.75 }
+        ext: { width: 450, height: 450 }
       });
 
       ws.getColumn(1).width = 12;
@@ -588,30 +650,38 @@
     // 繪圖核心
     function drawChart() {
       const parent = canvas.parentElement;
-      canvas.width = parent.clientWidth;
-      canvas.height = parent.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
+      
+      const displayWidth = parent.clientWidth;
+      const displayHeight = parent.clientHeight;
 
-      const paddingLeft = 70;
-      const paddingBottom = 60;
-      const paddingTop = 50;
-      const paddingRight = 30;
+      canvas.width = displayWidth * dpr;
+      canvas.height = displayHeight * dpr;
+      
+      ctx.scale(dpr, dpr);
 
-      const width = canvas.width - paddingLeft - paddingRight;
-      const height = canvas.height - paddingTop - paddingBottom;
+      const isMobile = displayWidth < 500;
+      const paddingLeft = isMobile ? 55 : 70;
+      const paddingBottom = isMobile ? 50 : 60;
+      const paddingTop = isMobile ? 40 : 50;
+      const paddingRight = isMobile ? 20 : 30;
+
+      const width = displayWidth - paddingLeft - paddingRight;
+      const height = displayHeight - paddingTop - paddingBottom;
 
       // 0. 背景與外框
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, displayWidth, displayHeight);
       ctx.strokeStyle = '#9ca3af';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+      ctx.lineWidth = 1;
+      ctx.strokeRect(1, 1, displayWidth - 2, displayHeight - 2);
 
       // 1. 標題
       if (title) {
         ctx.fillStyle = '#111827';
-        ctx.font = 'bold 16px sans-serif';
+        ctx.font = `bold ${isMobile ? 14 : 16}px sans-serif`;
         ctx.textAlign = 'center';
-        ctx.fillText(title, canvas.width / 2, 28);
+        ctx.fillText(title, displayWidth / 2, isMobile ? 22 : 28);
       }
 
       if (!currentData.length) return;
@@ -643,21 +713,21 @@
 
       // 2. 數據圖表邊框
       ctx.strokeStyle = '#374151';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
       ctx.strokeRect(paddingLeft, paddingTop, width, height);
 
       // 3. 中心軸 (0,0)
       const zeroX = toScreenX(0);
       const zeroY = toScreenY(0);
       ctx.strokeStyle = '#111827';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(paddingLeft, zeroY); ctx.lineTo(paddingLeft + width, zeroY); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(zeroX, paddingTop); ctx.lineTo(zeroX, paddingTop + height); ctx.stroke();
 
       // 4. 刻度與網格
       const ticksPerSide = 3;
       ctx.fillStyle = '#111827';
-      ctx.font = '500 13px monospace';
+      ctx.font = `500 ${isMobile ? 11 : 13}px monospace`;
 
       for (let i = -ticksPerSide; i <= ticksPerSide; i++) {
         const val = (i / ticksPerSide) * maxLimitX;
@@ -666,10 +736,10 @@
           ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
           ctx.beginPath(); ctx.moveTo(xPos, paddingTop); ctx.lineTo(xPos, paddingTop + height); ctx.stroke();
         }
-        ctx.strokeStyle = '#374151'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(xPos, paddingTop + height); ctx.lineTo(xPos, paddingTop + height + 5); ctx.stroke();
+        ctx.strokeStyle = '#374151'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(xPos, paddingTop + height); ctx.lineTo(xPos, paddingTop + height + 4); ctx.stroke();
         ctx.textAlign = 'center';
-        ctx.fillText(val.toFixed(2), xPos, paddingTop + height + 20);
+        ctx.fillText(val.toFixed(1), xPos, paddingTop + height + (isMobile ? 16 : 20));
       }
 
       for (let i = -ticksPerSide; i <= ticksPerSide; i++) {
@@ -679,20 +749,20 @@
           ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
           ctx.beginPath(); ctx.moveTo(paddingLeft, yPos); ctx.lineTo(paddingLeft + width, yPos); ctx.stroke();
         }
-        ctx.strokeStyle = '#374151'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(paddingLeft - 5, yPos); ctx.lineTo(paddingLeft, yPos); ctx.stroke();
+        ctx.strokeStyle = '#374151'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(paddingLeft - 4, yPos); ctx.lineTo(paddingLeft, yPos); ctx.stroke();
         ctx.textAlign = 'right';
-        ctx.fillText(val.toFixed(2), paddingLeft - 10, yPos + 4);
+        ctx.fillText(val.toFixed(1), paddingLeft - 6, yPos + 4);
       }
 
       // 5. 軸名稱
       ctx.fillStyle = '#111827';
-      ctx.font = 'bold 15px sans-serif';
+      ctx.font = `bold ${isMobile ? 12 : 15}px sans-serif`;
       ctx.textAlign = 'center';
-      ctx.fillText(xLabel, paddingLeft + width / 2, canvas.height - 12);
+      ctx.fillText(xLabel, paddingLeft + width / 2, displayHeight - (isMobile ? 6 : 12));
 
       ctx.save();
-      ctx.translate(20, paddingTop + height / 2);
+      ctx.translate(isMobile ? 14 : 20, paddingTop + height / 2);
       ctx.rotate(-Math.PI / 2);
       ctx.fillText(yLabel, 0, 0);
       ctx.restore();
@@ -713,7 +783,6 @@
           r = baseDotSize * (0.6 + ratio * 1.5);
         }
 
-        // 當前懸浮的高亮放大效果
         if (idx === hoverIndex) r += 3;
 
         if (d.PF === 'PASS') {
@@ -735,9 +804,9 @@
 
         if (showZText && idx !== hoverIndex) {
           ctx.fillStyle = '#374151';
-          ctx.font = 'bold 11px monospace';
+          ctx.font = `bold ${isMobile ? 9 : 11}px monospace`;
           ctx.textAlign = 'left';
-          ctx.fillText(`${d.Z}`, cx + r + 4, cy + 4);
+          ctx.fillText(`${d.Z}`, cx + r + 3, cy + 3);
         }
       });
 
@@ -767,19 +836,16 @@
         const boxWidth = maxWidth + tooltipPadding * 2;
         const boxHeight = lines.length * lineHeight + tooltipPadding * 2;
 
-        // 計算最佳彈出位置（預設右上角，接近邊界時自動調整至左側或下方）
         let boxX = cx + 12;
         let boxY = cy - boxHeight - 8;
 
-        if (boxX + boxWidth > canvas.width - 10) boxX = cx - boxWidth - 12;
+        if (boxX + boxWidth > displayWidth - 10) boxX = cx - boxWidth - 12;
         if (boxY < 10) boxY = cy + 12;
 
-        // 繪製半透明背景陰影與外框
-        ctx.fillStyle = 'rgba(17, 24, 39, 0.85)';
+        ctx.fillStyle = 'rgba(17, 24, 39, 0.9)';
         ctx.strokeStyle = target.PF === 'PASS' ? '#22c55e' : '#ef4444';
         ctx.lineWidth = 1.5;
 
-        // 圓角矩形 Tooltip
         const radius = 4;
         ctx.beginPath();
         ctx.moveTo(boxX + radius, boxY);
@@ -795,7 +861,6 @@
         ctx.fill();
         ctx.stroke();
 
-        // 寫入數據文字
         ctx.textAlign = 'left';
         lines.forEach((line, i) => {
           if (line.startsWith('P/F')) {
