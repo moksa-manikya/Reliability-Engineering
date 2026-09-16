@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-SN Uniform Scale Force Analysis Tool</title>
+    <!-- 引入 Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <!-- 引入 SheetJS -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f6f9;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .card {
+            background: #ffffff;
+            padding: 20px 24px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        h2 {
+            margin-top: 0;
+            color: #2c3e50;
+            font-size: 18px;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 10px;
+        }
+        .sn-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 10px;
+        }
+        .sn-title {
+            color: #0d6efd;
+            font-size: 20px;
+            font-weight: bold;
+            border-left: 5px solid #0d6efd;
+            padding-left: 10px;
+            margin: 0;
+        }
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: #f8f9fa;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            font-size: 13px;
+        }
+        .chart-ctrl-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #ffffff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #ced4da;
+            flex-wrap: wrap;
+        }
+        .group-label {
+            font-weight: bold;
+            color: #0d6efd;
+            margin-right: 4px;
+        }
+        select, input[type="file"] {
+            padding: 4px 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 13px;
+            background-color: #fff;
+        }
+        input[type="number"] {
+            width: 65px;
+            padding: 4px 6px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        button.btn-update {
+            background-color: #0d6efd;
+            color: white;
+            border: none;
+            padding: 8px 18px;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            align-self: flex-end;
+        }
+        button.btn-update:hover {
+            background-color: #0b5ed7;
+        }
+        button.btn-sync {
+            background-color: #198754;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button.btn-sync:hover {
+            background-color: #157347;
+        }
+        .chart-box {
+            width: 100%;
+            height: 480px;
+        }
+        .hint {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 6px;
+        }
+        .grid-1col {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Excel 上傳區塊 -->
+    <div class="card">
+        <h2>Excel 檔案上傳與比例尺 (Scale) 設定</h2>
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="excelFile" style="font-weight: bold; font-size: 14px;">上傳 Excel 檔案：</label>
+                <input type="file" id="excelFile" accept=".xlsx, .xls" onchange="handleFileSelect(event)" />
+            </div>
+            <button class="btn-sync" onclick="applyUniformScaleToAll()" id="btnSyncAll" style="display:none;">一鍵套用全域統一 Scale</button>
+        </div>
+        <div class="hint">
+            * <b>順序設定</b>：圖表1 (L/R 雙線) ➜ 圖表2 (Force L) ➜ 圖表3 (Force R) ➜ 圖表4 (Diff 差值)。<br>
+            * <b>標記與軸規</b>：Cycle 1/2/3 分別為菱形、圓形、正方形；圖表 1~3 的 Y 軸預設從 -100 起始。
+        </div>
+    </div>
+
+    <!-- 動態生成 S/N 的容器 -->
+    <div id="chartsContainer"></div>
+</div>
+
+<script>
+let globalSnGroups = {}; 
+// 全域邊界值 (用於對齊比例尺)
+let globalPosMin = 0, globalPosMax = 0;
+let globalForceMin = 0, globalForceMax = 0;
+let globalTimeMax = 0;
+let globalDiffMin = 0, globalDiffMax = 0;
+
+const cycleColors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2'];
+// Cycle 標記圖形清單：Cycle 1=菱形, Cycle 2=圓形, Cycle 3=正方形 ...
+const cycleSymbols = ['diamond', 'circle', 'square', 'triangle-up', 'cross', 'x', 'star'];
+
+const colorPalette = [
+    { L: '#1f77b4', R: '#aec7e8' },
+    { L: '#ff7f0e', R: '#ffbb78' },
+    { L: '#2ca02c', R: '#98df8a' },
+    { L: '#d62728', R: '#ff9896' },
+    { L: '#9467bd', R: '#c5b0d5' }
+];
+
+const axisOptions = [
+    { value: 'pos', text: 'Path Pos.' },
+    { value: 'relTime', text: '相對時間 (秒, 起點歸零)' },
+    { value: 'forceL', text: 'Force (L)' },
+    { value: 'forceR', text: 'Force (R)' },
+    { value: 'diff', text: 'Force 差值 (L - R)' },
+    { value: 'index', text: '點位序號 (Point Index)' }
+];
+
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        const jsonRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        processExcelData(jsonRows);
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function processExcelData(rows) {
+    const parsedData = [];
+    let allForceValues = [];
+    let allPosValues = [];
+
+    rows.forEach((row, index) => {
+        if (!row || row.length < 8) return;
+
+        const firstColStr = String(row[0]).trim();
+        if (index === 0 && (firstColStr.toLowerCase().includes('date') || isNaN(Date.parse(firstColStr.replace(/\//g, '-'))))) {
+            return;
+        }
+
+        const dateStr = String(row[0]).trim();
+        const timeStr = String(row[1]).trim();
+        const ms = parseInt(row[2]) || 0;
+        const sn = String(row[3]).trim();
+        const cycle = parseInt(row[4]);
+        const pos = parseFloat(row[5]);
+        const forceL = parseFloat(row[6]);
+        const forceR = parseFloat(row[7]);
+
+        if (!isNaN(cycle) && !isNaN(pos) && !isNaN(forceL) && !isNaN(forceR) && sn) {
+            const timeParts = timeStr.split(':').map(Number);
+            const dateParts = dateStr.replace(/-/g, '/').split('/').map(Number);
+            
+            let timestamp = 0;
+            if (dateParts.length === 3 && timeParts.length === 3) {
+                timestamp = new Date(dateParts[0], dateParts[1] - 1, dateParts[2], timeParts[0], timeParts[1], timeParts[2], ms).getTime();
+            }
+
+            allForceValues.push(forceL, forceR);
+            allPosValues.push(pos);
+
+            parsedData.push({
+                timestamp,
+                timeLabel: `${timeStr}.${ms}`,
+                sn,
+                cycle,
+                pos,
+                forceL,
+                forceR,
+                diff: forceL - forceR
+            });
+        }
+    });
+
+    if (parsedData.length === 0) {
+        alert("未能解析到有效數據，請確認 Excel 格式！");
+        return;
+    }
+
+    // 分組並計算相對時間與極值
+    globalSnGroups = {};
+    let allDiffValues = [];
+    let allRelTimeValues = [];
+
+    parsedData.forEach(d => {
+        if (!globalSnGroups[d.sn]) globalSnGroups[d.sn] = [];
+        globalSnGroups[d.sn].push(d);
+    });
+
+    Object.keys(globalSnGroups).forEach(sn => {
+        const cycles = [...new Set(globalSnGroups[sn].map(d => d.cycle))];
+        cycles.forEach(c => {
+            const cycleData = globalSnGroups[sn].filter(d => d.cycle === c);
+            const startTimestamp = cycleData[0].timestamp;
+            cycleData.forEach((d, idx) => {
+                d.relTime = startTimestamp > 0 ? (d.timestamp - startTimestamp) / 1000 : idx;
+                d.index = idx + 1;
+                allRelTimeValues.push(d.relTime);
+                allDiffValues.push(d.diff);
+            });
+        });
+    });
+
+    // 計算全域極值
+    if (allPosValues.length > 0) {
+        const minP = Math.min(...allPosValues);
+        const maxP = Math.max(...allPosValues);
+        const rangeP = maxP - minP;
+        const marginP = rangeP * 0.05 || 1;
+
+        globalPosMin = Math.floor(minP - marginP);
+        globalPosMax = Math.ceil(maxP + marginP);
+    }
+
+    if (allForceValues.length > 0) {
+        const minF = Math.min(...allForceValues);
+        const maxF = Math.max(...allForceValues);
+        const marginF = (maxF - minF) * 0.05 || 1;
+        globalForceMin = Math.floor(minF - marginF);
+        globalForceMax = Math.ceil(maxF + marginF);
+    }
+
+    if (allRelTimeValues.length > 0) {
+        globalTimeMax = Math.ceil(Math.max(...allRelTimeValues) * 1.05);
+    }
+
+    if (allDiffValues.length > 0) {
+        const minD = Math.min(...allDiffValues);
+        const maxD = Math.max(...allDiffValues);
+        const marginD = (maxD - minD) * 0.05 || 1;
+        globalDiffMin = Math.floor(minD - marginD);
+        globalDiffMax = Math.ceil(maxD + marginD);
+    }
+
+    document.getElementById('btnSyncAll').style.display = 'inline-block';
+    renderAllSNContainers();
+}
+
+function renderAllSNContainers() {
+    const container = document.getElementById('chartsContainer');
+    container.innerHTML = '';
+
+    Object.keys(globalSnGroups).forEach((sn, idx) => {
+        const cardDiv = document.createElement('div');
+        cardDiv.className = 'card';
+
+        const chart1Id = `chart1_${idx}`;
+        const chart2Id = `chart2_${idx}`;
+        const chart3Id = `chart3_${idx}`;
+        const chart4Id = `chart4_${idx}`;
+
+        cardDiv.innerHTML = `
+            <div class="sn-header">
+                <div class="sn-title">S/N: ${sn}</div>
+            </div>
+            <div class="control-panel">
+                <div class="control-row">
+                    <!-- 圖表 1 控制：Force L/R 雙線合一 -->
+                    <div class="chart-ctrl-group">
+                        <span class="group-label">[${sn}-1 Force L/R]</span>
+                        <span>X:</span>
+                        <select id="c1_x_${idx}">${generateOptions('pos')}</select>
+                        <span>Y:</span>
+                        <select id="c1_y_${idx}">${generateOptions('forceL_R')}</select>
+                        <span style="margin-left:5px;">X Scale:</span>
+                        <input type="number" id="c1_xmin_${idx}" value="${globalPosMin}" placeholder="Min"> ~
+                        <input type="number" id="c1_xmax_${idx}" value="${globalPosMax}" placeholder="Max">
+                        <span>Y Scale:</span>
+                        <input type="number" id="c1_ymin_${idx}" value="-100" placeholder="Min"> ~
+                        <input type="number" id="c1_ymax_${idx}" value="${globalForceMax}" placeholder="Max">
+                    </div>
+
+                    <!-- 圖表 2 控制：Force L -->
+                    <div class="chart-ctrl-group">
+                        <span class="group-label">[${sn}-2 Force L]</span>
+                        <span>X:</span>
+                        <select id="c2_x_${idx}">${generateOptions('pos')}</select>
+                        <span>Y:</span>
+                        <select id="c2_y_${idx}">${generateOptions('forceL')}</select>
+                        <span style="margin-left:5px;">X Scale:</span>
+                        <input type="number" id="c2_xmin_${idx}" value="${globalPosMin}" placeholder="Min"> ~
+                        <input type="number" id="c2_xmax_${idx}" value="${globalPosMax}" placeholder="Max">
+                        <span>Y Scale:</span>
+                        <input type="number" id="c2_ymin_${idx}" value="-100" placeholder="Min"> ~
+                        <input type="number" id="c2_ymax_${idx}" value="${globalForceMax}" placeholder="Max">
+                    </div>
+
+                    <!-- 圖表 3 控制：Force R -->
+                    <div class="chart-ctrl-group">
+                        <span class="group-label">[${sn}-3 Force R]</span>
+                        <span>X:</span>
+                        <select id="c3_x_${idx}">${generateOptions('pos')}</select>
+                        <span>Y:</span>
+                        <select id="c3_y_${idx}">${generateOptions('forceR')}</select>
+                        <span style="margin-left:5px;">X Scale:</span>
+                        <input type="number" id="c3_xmin_${idx}" value="${globalPosMin}" placeholder="Min"> ~
+                        <input type="number" id="c3_xmax_${idx}" value="${globalPosMax}" placeholder="Max">
+                        <span>Y Scale:</span>
+                        <input type="number" id="c3_ymin_${idx}" value="-100" placeholder="Min"> ~
+                        <input type="number" id="c3_ymax_${idx}" value="${globalForceMax}" placeholder="Max">
+                    </div>
+
+                    <!-- 圖表 4 控制：Diff 差值 -->
+                    <div class="chart-ctrl-group">
+                        <span class="group-label">[${sn}-4 Diff]</span>
+                        <span>X:</span>
+                        <select id="c4_x_${idx}">${generateOptions('pos')}</select>
+                        <span>Y:</span>
+                        <select id="c4_y_${idx}">${generateOptions('diff')}</select>
+                        <span style="margin-left:5px;">X Scale:</span>
+                        <input type="number" id="c4_xmin_${idx}" value="${globalPosMin}" placeholder="Min"> ~
+                        <input type="number" id="c4_xmax_${idx}" value="${globalPosMax}" placeholder="Max">
+                        <span>Y Scale:</span>
+                        <input type="number" id="c4_ymin_${idx}" value="${globalDiffMin}" placeholder="Min"> ~
+                        <input type="number" id="c4_ymax_${idx}" value="${globalDiffMax}" placeholder="Max">
+                    </div>
+
+                    <button class="btn-update" onclick="updateSingleSNChart('${sn}', ${idx})">更新圖表</button>
+                </div>
+            </div>
+            <!-- 一列四個圖表 -->
+            <div class="grid-1col">
+                <div><div id="${chart1Id}" class="chart-box"></div></div>
+                <div><div id="${chart2Id}" class="chart-box"></div></div>
+                <div><div id="${chart3Id}" class="chart-box"></div></div>
+                <div><div id="${chart4Id}" class="chart-box"></div></div>
+            </div>
+        `;
+
+        container.appendChild(cardDiv);
+        renderSingleSNCharts(sn, idx);
+    });
+}
+
+function applyUniformScaleToAll() {
+    Object.keys(globalSnGroups).forEach((sn, idx) => {
+        document.getElementById(`c1_xmin_${idx}`).value = globalPosMin;
+        document.getElementById(`c1_xmax_${idx}`).value = globalPosMax;
+        document.getElementById(`c1_ymin_${idx}`).value = -100;
+        document.getElementById(`c1_ymax_${idx}`).value = globalForceMax;
+
+        document.getElementById(`c2_xmin_${idx}`).value = globalPosMin;
+        document.getElementById(`c2_xmax_${idx}`).value = globalPosMax;
+        document.getElementById(`c2_ymin_${idx}`).value = -100;
+        document.getElementById(`c2_ymax_${idx}`).value = globalForceMax;
+
+        document.getElementById(`c3_xmin_${idx}`).value = globalPosMin;
+        document.getElementById(`c3_xmax_${idx}`).value = globalPosMax;
+        document.getElementById(`c3_ymin_${idx}`).value = -100;
+        document.getElementById(`c3_ymax_${idx}`).value = globalForceMax;
+
+        document.getElementById(`c4_xmin_${idx}`).value = globalPosMin;
+        document.getElementById(`c4_xmax_${idx}`).value = globalPosMax;
+        document.getElementById(`c4_ymin_${idx}`).value = globalDiffMin;
+        document.getElementById(`c4_ymax_${idx}`).value = globalDiffMax;
+
+        renderSingleSNCharts(sn, idx);
+    });
+}
+
+function generateOptions(selectedKey) {
+    let extraOpts = `<option value="forceL_R" ${selectedKey === 'forceL_R' ? 'selected' : ''}>Force (L & R 分開)</option>`;
+    const mainOpts = axisOptions.map(opt => {
+        const isSelected = opt.value === selectedKey ? 'selected' : '';
+        return `<option value="${opt.value}" ${isSelected}>${opt.text}</option>`;
+    }).join('');
+
+    return extraOpts + mainOpts;
+}
+
+function updateSingleSNChart(sn, idx) {
+    renderSingleSNCharts(sn, idx);
+}
+
+function renderSingleSNCharts(sn, idx) {
+    const snData = globalSnGroups[sn];
+    const cycles = [...new Set(snData.map(d => d.cycle))].sort((a, b) => a - b);
+
+    // 取得圖表 1 設定 (Force L/R 雙線合一)
+    const c1XKey = document.getElementById(`c1_x_${idx}`).value;
+    const c1YKey = document.getElementById(`c1_y_${idx}`).value;
+    const c1XMin = document.getElementById(`c1_xmin_${idx}`).value;
+    const c1XMax = document.getElementById(`c1_xmax_${idx}`).value;
+    const c1YMin = document.getElementById(`c1_ymin_${idx}`).value;
+    const c1YMax = document.getElementById(`c1_ymax_${idx}`).value;
+
+    // 取得圖表 2 設定 (Force L)
+    const c2XKey = document.getElementById(`c2_x_${idx}`).value;
+    const c2YKey = document.getElementById(`c2_y_${idx}`).value;
+    const c2XMin = document.getElementById(`c2_xmin_${idx}`).value;
+    const c2XMax = document.getElementById(`c2_xmax_${idx}`).value;
+    const c2YMin = document.getElementById(`c2_ymin_${idx}`).value;
+    const c2YMax = document.getElementById(`c2_ymax_${idx}`).value;
+
+    // 取得圖表 3 設定 (Force R)
+    const c3XKey = document.getElementById(`c3_x_${idx}`).value;
+    const c3YKey = document.getElementById(`c3_y_${idx}`).value;
+    const c3XMin = document.getElementById(`c3_xmin_${idx}`).value;
+    const c3XMax = document.getElementById(`c3_xmax_${idx}`).value;
+    const c3YMin = document.getElementById(`c3_ymin_${idx}`).value;
+    const c3YMax = document.getElementById(`c3_ymax_${idx}`).value;
+
+    // 取得圖表 4 設定 (Diff)
+    const c4XKey = document.getElementById(`c4_x_${idx}`).value;
+    const c4YKey = document.getElementById(`c4_y_${idx}`).value;
+    const c4XMin = document.getElementById(`c4_xmin_${idx}`).value;
+    const c4XMax = document.getElementById(`c4_xmax_${idx}`).value;
+    const c4YMin = document.getElementById(`c4_ymin_${idx}`).value;
+    const c4YMax = document.getElementById(`c4_ymax_${idx}`).value;
+
+    const chart1Id = `chart1_${idx}`;
+    const chart2Id = `chart2_${idx}`;
+    const chart3Id = `chart3_${idx}`;
+    const chart4Id = `chart4_${idx}`;
+
+    // 圖表 1：Force L/R 雙線合一
+    drawCustomChart(
+        chart1Id, snData, cycles, c1XKey, c1YKey, 
+        `${sn}-1 (${getAxisLabel(c1XKey)} vs ${getAxisLabel(c1YKey)})`,
+        c1XMin, c1XMax, c1YMin, c1YMax, false
+    );
+
+    // 圖表 2：Force L
+    drawCustomChart(
+        chart2Id, snData, cycles, c2XKey, c2YKey, 
+        `${sn}-2 (${getAxisLabel(c2XKey)} vs ${getAxisLabel(c2YKey)})`,
+        c2XMin, c2XMax, c2YMin, c2YMax, false
+    );
+
+    // 圖表 3：Force R
+    drawCustomChart(
+        chart3Id, snData, cycles, c3XKey, c3YKey, 
+        `${sn}-3 (${getAxisLabel(c3XKey)} vs ${getAxisLabel(c3YKey)})`,
+        c3XMin, c3XMax, c3YMin, c3YMax, false
+    );
+
+    // 圖表 4：Diff 差值 (展開去回程模式)
+    drawCustomChart(
+        chart4Id, snData, cycles, c4XKey, c4YKey, 
+        `${sn}-4 (${getAxisLabel(c4XKey)} vs ${getAxisLabel(c4YKey)})`,
+        c4XMin, c4XMax, c4YMin, c4YMax, true
+    );
+}
+
+function getAxisLabel(key) {
+    if (key === 'forceL_R') return 'Force (L/R)';
+    const found = axisOptions.find(o => o.value === key);
+    return found ? found.text : key;
+}
+
+function drawCustomChart(chartId, snData, cycles, xKey, yKey, titleText, xMin, xMax, yMin, yMax, enableSplitReturn = false) {
+    const traces = [];
+    let avgPeakPos = 0;
+
+    if (enableSplitReturn && xKey === 'pos') {
+        let peakSum = 0;
+        cycles.forEach(c => {
+            const cycleData = snData.filter(d => d.cycle === c);
+            let maxPosVal = -Infinity;
+            cycleData.forEach(d => { if (d.pos > maxPosVal) maxPosVal = d.pos; });
+            peakSum += maxPosVal;
+        });
+        avgPeakPos = peakSum / cycles.length;
+    }
+
+    cycles.forEach((c, index) => {
+        // 按照時間順序排序
+        const cycleData = snData.filter(d => d.cycle === c).sort((a, b) => a.index - b.index);
+
+        let xValues = [];
+        let textHover = [];
+
+        // 選擇該 Cycle 的標記圖形 (Cycle 1: diamond, Cycle 2: circle, Cycle 3: square ...)
+        const symbol = cycleSymbols[index % cycleSymbols.length];
+
+        if (enableSplitReturn && xKey === 'pos') {
+            // 拆成去程與回程，並使用 Path Pos. 實際數值
+            let maxPosVal = -Infinity;
+            let peakIdx = 0;
+
+            cycleData.forEach((d, i) => {
+                if (d.pos > maxPosVal) {
+                    maxPosVal = d.pos;
+                    peakIdx = i;
+                }
+            });
+
+            xValues = cycleData.map((d, i) => {
+                if (i <= peakIdx) {
+                    return d.pos; 
+                } else {
+                    return (2 * maxPosVal) - d.pos; 
+                }
+            });
+
+            textHover = cycleData.map((d, i) => {
+                const phase = i <= peakIdx ? "去程 (上升/左邊)" : "回程 (下降/右邊)";
+                return `Cycle: ${d.cycle}<br>` +
+                       `階段: ${phase}<br>` +
+                       `Path Pos (實際值): ${d.pos}<br>` +
+                       `相對時間: ${d.relTime.toFixed(2)} 秒<br>` +
+                       `Force(L): ${d.forceL} | Force(R): ${d.forceR}<br>` +
+                       `差值(L-R): ${d.diff}`;
+            });
+        } else {
+            // 傳統直接連線模式 (圖表 1, 2, 3)
+            xValues = cycleData.map(d => d[xKey]);
+            textHover = cycleData.map((d) => 
+                `Cycle: ${d.cycle}<br>` +
+                `Path Pos: ${d.pos}<br>` +
+                `相對時間: ${d.relTime.toFixed(2)} 秒<br>` +
+                `Force(L): ${d.forceL} | Force(R): ${d.forceR}<br>` +
+                `差值(L-R): ${d.diff}`
+            );
+        }
+
+        if (yKey === 'forceL_R') {
+            const colorScheme = colorPalette[index % colorPalette.length];
+            traces.push({
+                x: xValues,
+                y: cycleData.map(d => d.forceL),
+                mode: 'lines+markers',
+                name: `Cycle ${c} - Force(L)`,
+                text: textHover,
+                hoverinfo: 'text',
+                line: { color: colorScheme.L, width: 2 },
+                marker: { size: 9, symbol: symbol }
+            });
+            traces.push({
+                x: xValues,
+                y: cycleData.map(d => d.forceR),
+                mode: 'lines+markers',
+                name: `Cycle ${c} - Force(R)`,
+                text: textHover,
+                hoverinfo: 'text',
+                line: { color: colorScheme.R, width: 2, dash: 'dot' },
+                marker: { size: 9, symbol: symbol }
+            });
+        } else {
+            const color = cycleColors[index % cycleColors.length];
+            const yValues = cycleData.map(d => d[yKey]);
+
+            traces.push({
+                x: xValues,
+                y: yValues,
+                mode: 'lines+markers',
+                name: `Cycle ${c}`,
+                text: textHover,
+                hoverinfo: 'text',
+                line: { color: color, width: 2 },
+                marker: { size: 9, symbol: symbol }
+            });
+        }
+    });
+
+    const xaxisConfig = { 
+        title: (enableSplitReturn && xKey === 'pos') 
+            ? `← 去程 (上升) | Peak [實際值: ${avgPeakPos.toFixed(1)}] | 回程 (下降) →` 
+            : getAxisLabel(xKey), 
+        showgrid: true, 
+        zeroline: !enableSplitReturn
+    };
+    const yaxisConfig = { title: getAxisLabel(yKey), showgrid: true, zeroline: true };
+
+    // 設定 X 軸 Scale
+    if (enableSplitReturn && xKey === 'pos') {
+        const parsedXMin = (xMin !== "" && xMin !== null && !isNaN(xMin)) ? parseFloat(xMin) : globalPosMin;
+        const parsedXMax = (xMax !== "" && xMax !== null && !isNaN(xMax)) ? parseFloat(xMax) : globalPosMax;
+
+        const range = parsedXMax - parsedXMin;
+        const step = range / 4 || 10; 
+
+        let tickVals = [];
+        let tickTexts = [];
+
+        // 去程刻度 (左側)
+        for (let val = parsedXMin; val <= avgPeakPos; val += step) {
+            tickVals.push(val);
+            tickTexts.push(val.toFixed(0));
+        }
+
+        // Peak 位置刻度
+        tickVals.push(avgPeakPos);
+        tickTexts.push(`Peak (${avgPeakPos.toFixed(0)})`);
+
+        // 回程刻度 (右側)
+        for (let val = avgPeakPos - step; val >= parsedXMin; val -= step) {
+            const mappedX = (2 * avgPeakPos) - val;
+            tickVals.push(mappedX);
+            tickTexts.push(val.toFixed(0));
+        }
+
+        xaxisConfig.tickmode = 'array';
+        xaxisConfig.tickvals = tickVals;
+        xaxisConfig.ticktext = tickTexts;
+        
+        const mirrorMax = (2 * avgPeakPos) - parsedXMin;
+        xaxisConfig.range = [parsedXMin, mirrorMax];
+    } else {
+        const parsedXMin = (xMin !== "" && xMin !== null && !isNaN(xMin)) ? parseFloat(xMin) : null;
+        const parsedXMax = (xMax !== "" && xMax !== null && !isNaN(xMax)) ? parseFloat(xMax) : null;
+        if (parsedXMin !== null && parsedXMax !== null) {
+            xaxisConfig.range = [parsedXMin, parsedXMax];
+        }
+    }
+
+    // 設定 Y 軸固定 Scale 範圍
+    const parsedYMin = (yMin !== "" && yMin !== null && !isNaN(yMin)) ? parseFloat(yMin) : null;
+    const parsedYMax = (yMax !== "" && yMax !== null && !isNaN(yMax)) ? parseFloat(yMax) : null;
+    if (parsedYMin !== null && parsedYMax !== null) {
+        yaxisConfig.range = [parsedYMin, parsedYMax];
+    }
+
+    // 僅有展開去回程模式 (enableSplitReturn = true) 繪製 Peak 中間紅線
+    const shapes = [];
+    if (enableSplitReturn && xKey === 'pos') {
+        shapes.push({
+            type: 'line',
+            x0: avgPeakPos,
+            x1: avgPeakPos,
+            y0: 0,
+            y1: 1,
+            yref: 'paper',
+            line: {
+                color: '#d62728',
+                width: 2,
+                dash: 'dash'
+            }
+        });
+    }
+
+    const layout = {
+        title: { text: titleText, font: { size: 14 } },
+        xaxis: xaxisConfig,
+        yaxis: yaxisConfig,
+        shapes: shapes,
+        hovermode: 'closest',
+        legend: { orientation: 'h', y: -0.22 },
+        margin: { l: 55, r: 25, t: 40, b: 65 }
+    };
+
+    Plotly.newPlot(chartId, traces, layout, { responsive: true });
+}
+</script>
+
+</body>
+</html>
